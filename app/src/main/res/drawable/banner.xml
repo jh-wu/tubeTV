@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 launcher banner for Android TV: the app icon and the name. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="320" android:endY="180"
+                android:startColor="#FF1A1A1A" android:endColor="#FF3A0A12" />
+        </aapt:attr>
+    </path>
+    <group android:translateX="34" android:translateY="54">
+        <path android:pathData="M14,0h44a14,14 0 0 1 14,14v44a14,14 0 0 1 -14,14h-44a14,14 0 0 1 -14,-14v-44a14,14 0 0 1 14,-14z" android:fillColor="#FFFF0033" />
+        <group android:scaleX="0.6667" android:scaleY="0.6667">
+            <path android:pathData="M33,34h42a6,6 0 0 1 6,6v26a6,6 0 0 1 -6,6h-42a6,6 0 0 1 -6,-6v-26a6,6 0 0 1 6,-6z" android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:fillColor="#00000000" />
+            <path android:pathData="M48,43.5L48,62.5L64,53z" android:fillColor="#FFFFFFFF" />
+            <path android:pathData="M42,80h24" android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:strokeLineCap="round" />
+        </group>
+    </group>
+    <path android:pathData="M135.23 83.32V89.66H142.59V94.77H135.23V104.24Q135.23 105.8 135.85 106.35Q136.46 106.89 138.3 106.89H141.97V112H135.85Q131.62 112 129.85 110.24Q128.09 108.47 128.09 104.24V94.77H124.54V89.66H128.09V83.32ZM146.71 103.31V89.66H153.89V91.9Q153.89 93.71 153.87 96.46Q153.85 99.2 153.85 100.11Q153.85 102.81 153.99 103.99Q154.13 105.18 154.47 105.72Q154.91 106.42 155.62 106.8Q156.33 107.17 157.24 107.17Q159.48 107.17 160.75 105.46Q162.03 103.74 162.03 100.69V89.66H169.17V112H162.03V108.77Q160.41 110.72 158.61 111.65Q156.8 112.58 154.63 112.58Q150.76 112.58 148.74 110.21Q146.71 107.83 146.71 103.31ZM187.91 107.39Q190.21 107.39 191.41 105.72Q192.62 104.04 192.62 100.85Q192.62 97.66 191.41 95.99Q190.21 94.31 187.91 94.31Q185.62 94.31 184.39 96Q183.17 97.68 183.17 100.85Q183.17 104.02 184.39 105.71Q185.62 107.39 187.91 107.39ZM183.17 92.94Q184.64 90.98 186.44 90.05Q188.23 89.13 190.57 89.13Q194.69 89.13 197.35 92.41Q200 95.69 200 100.85Q200 106.02 197.35 109.3Q194.69 112.58 190.57 112.58Q188.23 112.58 186.44 111.65Q184.64 110.72 183.17 108.77V112H176.03V80.97H183.17ZM227.56 100.77V102.81H210.87Q211.13 105.32 212.68 106.58Q214.24 107.83 217.03 107.83Q219.28 107.83 221.65 107.16Q224.01 106.5 226.5 105.14V110.64Q223.97 111.6 221.44 112.09Q218.9 112.58 216.37 112.58Q210.31 112.58 206.95 109.5Q203.59 106.42 203.59 100.85Q203.59 95.39 206.89 92.26Q210.19 89.13 215.97 89.13Q221.24 89.13 224.4 92.3Q227.56 95.47 227.56 100.77ZM220.22 98.4Q220.22 96.37 219.03 95.12Q217.85 93.87 215.93 93.87Q213.86 93.87 212.56 95.04Q211.27 96.21 210.95 98.4ZM229.73 82.23H257.17V88.03H247.3V112H239.62V88.03H229.73ZM257.59 82.23H265.31L273.21 104.2L281.08 82.23H288.8L277.77 112H268.62Z" android:fillColor="#FFFFFFFF" />
+</vector>
