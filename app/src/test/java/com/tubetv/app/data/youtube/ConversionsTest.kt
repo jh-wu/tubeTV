@@ -26,4 +26,9 @@ class ConversionsTest {
         val sources = Conversions.playSources("https://h/index.m3u8", "", emptyList(), emptyList(), emptyList())
         assertEquals(listOf(PlaySource.Hls("https://h/index.m3u8")), sources)
     }
+
+    @Test fun channelTabUrlBecomesChannelUrl() {
+        assertEquals("https://www.youtube.com/channel/UC1", Conversions.channelHome("https://www.youtube.com/channel/UC1/videos"))
+        assertEquals("https://www.youtube.com/@nasa", Conversions.channelHome("https://www.youtube.com/@nasa"))
+    }
 }

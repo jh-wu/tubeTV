@@ -33,7 +33,7 @@ internal object Conversions {
         title = name.orEmpty(),
         thumbnailUrl = thumbnails.pick(360),
         channelName = uploaderName?.ifBlank { null } ?: fallbackChannel?.name,
-        channelUrl = uploaderUrl?.ifBlank { null } ?: fallbackChannel?.url,
+        channelUrl = uploaderUrl?.ifBlank { null }?.let(::channelHome) ?: fallbackChannel?.url,
         durationSec = duration,
         viewCount = viewCount,
         uploaded = textualUploadDate?.ifBlank { null },
@@ -49,6 +49,9 @@ internal object Conversions {
     )
 
     fun StreamType?.isLive() = this == StreamType.LIVE_STREAM || this == StreamType.AUDIO_LIVE_STREAM
+
+    /** Videos listed on a channel's tab name the tab as their channel, e.g. ".../videos"; this is the channel itself. */
+    fun channelHome(url: String) = url.replace(Regex("/(videos|shorts|streams|featured)/?$"), "")
 
     /** YouTube sometimes gives avatar URLs without a scheme. */
     fun absolute(url: String) = if (url.startsWith("//")) "https:$url" else url
