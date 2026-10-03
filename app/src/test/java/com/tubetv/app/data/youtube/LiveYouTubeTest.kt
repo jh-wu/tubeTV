@@ -41,6 +41,12 @@ class LiveYouTubeTest {
         println("video search: ${found.items.size}, first=${found.items.firstOrNull()?.title}")
         assertTrue("no videos found", found.items.isNotEmpty())
 
+        for ((id, title) in com.tubetv.app.data.Kiosks.home) {
+            val list = runCatching { source.kiosk(id) }
+            println("kiosk $title: ${list.getOrNull()?.size} ${list.exceptionOrNull() ?: list.getOrNull()?.firstOrNull()?.title}")
+        }
+        assertTrue("no home rows", com.tubetv.app.data.Kiosks.home.any { (id, _) -> runCatching { source.kiosk(id) }.getOrNull().orEmpty().isNotEmpty() })
+
         val url = videos.items.first { !it.isLive }.url
         val detail = try {
             source.video(url)

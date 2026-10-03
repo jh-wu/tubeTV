@@ -4,6 +4,7 @@ import com.tubetv.app.data.model.VideoSummary
 import com.tubetv.app.ui.common.formatCount
 import com.tubetv.app.ui.common.formatTime
 import com.tubetv.app.ui.common.videoSubtitle
+import com.tubetv.app.ui.home.interleave
 import com.tubetv.app.ui.home.mergeLatest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -33,5 +34,11 @@ class FormatTest {
         fun v(id: String, at: Long?) = VideoSummary("https://www.youtube.com/watch?v=$id", id, null, null, null, uploadedAtMs = at)
         val merged = mergeLatest(listOf(listOf(v("a", 10), v("b", null)), listOf(v("c", 30), v("a", 10))))
         assertEquals(listOf("c", "a", "b"), merged.map { it.title })
+    }
+
+    @Test fun recommendationsTakeTurnsBetweenSources() {
+        fun v(id: String) = VideoSummary("https://www.youtube.com/watch?v=$id", id, null, null, null)
+        val mixed = interleave(listOf(listOf(v("a1"), v("a2"), v("a3")), listOf(v("b1"), v("a2")), emptyList()))
+        assertEquals(listOf("a1", "b1", "a2", "a3"), mixed.map { it.title })
     }
 }

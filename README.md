@@ -6,6 +6,10 @@ favourite channels in place of iyfTV's fixed categories.
 
 ## Features (v1)
 
+- **首页** (the default tab): rows like YouTube's front page. **为你推荐** mixes videos related to
+  what you watched recently with new uploads from your favourite and browsed channels; below it
+  are YouTube's public lists: 正在直播, 热门音乐, 热门游戏, 电影与节目, 热门播客. YouTube's own
+  personal home feed needs a Google sign-in, which the app doesn't do.
 - **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first.
 - **收藏频道**: favourite channels. Add one with **收藏** on its channel page; long-press a channel
   here to remove it. The **+** card opens search.

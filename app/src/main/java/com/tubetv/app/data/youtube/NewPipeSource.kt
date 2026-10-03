@@ -23,6 +23,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
 import org.schabi.newpipe.extractor.feed.FeedInfo
+import org.schabi.newpipe.extractor.kiosk.KioskInfo
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.search.SearchInfo
@@ -100,6 +101,12 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
             .getOrNull()
             ?.takeIf { it.isNotEmpty() }
             ?: channelVideos(channelUrl, null).items
+    }
+
+    override suspend fun kiosk(id: String): List<VideoSummary> = io {
+        val extractor = service.kioskList.getExtractorById(id, null)
+        extractor.fetchPage()
+        KioskInfo.getInfo(extractor).relatedItems.map { it.toSummary() }
     }
 
     override suspend fun video(url: String): VideoDetail = io {

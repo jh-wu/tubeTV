@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -52,6 +54,7 @@ import com.tubetv.app.ui.common.Message
 import com.tubetv.app.ui.common.VideoCard
 import com.tubetv.app.ui.common.VideoCardWidth
 import com.tubetv.app.ui.common.VideoGrid
+import com.tubetv.app.ui.common.VideoRow
 import com.tubetv.app.ui.common.formatTime
 
 @Composable
@@ -101,6 +104,7 @@ fun HomeScreen(
 
         when (selected) {
             HomeTab.Continue -> ContinueWatching(vm, onResume)
+            HomeTab.Home -> HomeFeedTab(vm, onOpenVideo)
             HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
             HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
             HomeTab.Browsed -> Browsed(vm, onOpenChannel)
@@ -172,6 +176,37 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
             }
         },
     )
+}
+
+@Composable
+private fun HomeFeedTab(vm: HomeViewModel, onOpenVideo: (String) -> Unit) {
+    val feed by vm.home.collectAsState()
+    when {
+        feed.rows.isEmpty() && feed.loading -> Message("加载中…")
+        feed.rows.isEmpty() && feed.error != null -> Message("加载失败：${feed.error}", onRetry = vm::refreshHome)
+        feed.rows.isEmpty() -> Message("YouTube 没有返回推荐内容", onRetry = vm::refreshHome)
+        else -> LazyColumn(
+            contentPadding = PaddingValues(vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp),
+        ) {
+            item(key = "__refresh") {
+                Row(
+                    Modifier.padding(horizontal = 48.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(onClick = vm::refreshHome) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
+                    }
+                    Hint("“为你推荐”来自你看过的视频和收藏、浏览过的频道")
+                }
+            }
+            items(feed.rows, key = { it.title }) { row ->
+                VideoRow(row.title, row.videos, onOpen = { onOpenVideo(it.url) })
+            }
+        }
+    }
 }
 
 @Composable
