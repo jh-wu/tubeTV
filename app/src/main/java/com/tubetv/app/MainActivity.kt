@@ -1,7 +1,10 @@
 package com.tubetv.app
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +29,15 @@ import com.tubetv.app.ui.video.VideoScreen
 import com.tubetv.app.ui.video.VideoViewModel
 
 class MainActivity : ComponentActivity() {
+
+    private fun openInYouTube(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "没有找到 YouTube 应用", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as TubeTvApp
@@ -70,6 +82,7 @@ class MainActivity : ComponentActivity() {
                                 onPlay = { fromStart -> play(url, fromStart) },
                                 onOpenChannel = openChannel,
                                 onOpenVideo = openVideo,
+                                onOpenInYouTube = { openInYouTube(url) },
                             )
                         }
                     }

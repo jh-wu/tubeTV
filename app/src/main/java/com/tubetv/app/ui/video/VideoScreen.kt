@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -77,13 +78,32 @@ fun VideoScreen(
     onPlay: (fromStart: Boolean) -> Unit,
     onOpenChannel: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
+    onOpenInYouTube: () -> Unit,
 ) {
     val state by vm.detail.collectAsState()
     val record by vm.record.collectAsState()
     when (val s = state) {
         is Load.Loading -> Message("加载中…")
-        is Load.Failed -> Message("加载失败：${s.message}", onRetry = vm::load)
+        is Load.Failed -> LoadFailed(s.message, vm::load, onOpenInYouTube)
         is Load.Ready -> VideoContent(s.value, record, onPlay, onOpenChannel, onOpenVideo)
+    }
+}
+
+/** The error, with retry and a way out to the YouTube app, which can play what this app could not load. */
+@Composable
+private fun LoadFailed(message: String, onRetry: () -> Unit, onOpenInYouTube: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(message) { runCatching { focus.requestFocus() } }
+    Column(
+        Modifier.fillMaxSize().padding(48.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("加载失败：$message", style = MaterialTheme.typography.bodyLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = onRetry, modifier = Modifier.focusRequester(focus)) { Text("重试") }
+            OutlinedButton(onClick = onOpenInYouTube) { Text("用 YouTube 应用打开") }
+        }
     }
 }
 
