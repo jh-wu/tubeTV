@@ -154,6 +154,7 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
             sources = sources,
             subtitles = Conversions.subtitleOptions(info.subtitles.orEmpty()),
             audioOptions = Conversions.audioOptions(info.audioStreams.orEmpty()),
+            videoOptions = Conversions.videoOptions(info.videoOnlyStreams.orEmpty()),
         )
     }
 

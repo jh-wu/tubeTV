@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Home
@@ -213,8 +214,12 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
                 }
             }
         }
+        // A reloaded (or newly opened) list starts from the top.
+        val gridState = rememberLazyGridState()
+        LaunchedEffect(feed.videos) { gridState.scrollToItem(0) }
         VideoGrid(
             GridState(feed.videos, loading = feed.loading, hasMore = false, error = feed.error),
+            gridState = gridState,
             onOpen = { onOpenVideo(it.url) },
             // Only a failed load is worth asking again; the lists have one page.
             onLoadMore = { if (feed.error != null) reload() },
@@ -267,8 +272,11 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
         }
     }
     val grid = GridState(latest.videos, loading = latest.loading, hasMore = false, error = latest.error)
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(latest.videos) { gridState.scrollToItem(0) }
     VideoGrid(
         grid,
+        gridState = gridState,
         onOpen = { onOpenVideo(it.url) },
         onLoadMore = vm::refreshLatest,
         emptyText = "收藏的频道还没有视频",
@@ -306,12 +314,19 @@ private fun NoFavourites(onSearch: () -> Unit) {
 @Composable
 private fun Favourites(vm: HomeViewModel, onOpenChannel: (String) -> Unit, onSearch: () -> Unit) {
     val favourites = vm.favourites.collectAsState().value ?: return
+    val newest by vm.newestUpload.collectAsState()
+    val lastVisited = vm.browsed.collectAsState().value.orEmpty().associate { it.url to it.lastVisitedAt }
     var removing by remember { mutableStateOf<ChannelSummary?>(null) }
     ChannelGrid {
-        fullWidth { Hint("长按频道可取消收藏") }
+        fullWidth { Hint("标“新”的频道在你上次打开后有新视频 · 长按频道可取消收藏") }
         item(key = "__add") { AddChannelCard("添加频道", onSearch) }
         items(favourites, key = { it.url }) { c ->
-            ChannelCard(c, onClick = { onOpenChannel(c.url) }, onLongClick = { removing = c })
+            ChannelCard(
+                c,
+                onClick = { onOpenChannel(c.url) },
+                onLongClick = { removing = c },
+                hasNew = vm.hasNew(c.url, lastVisited[c.url], newest),
+            )
         }
     }
     removing?.let { c ->
@@ -327,6 +342,8 @@ private fun Favourites(vm: HomeViewModel, onOpenChannel: (String) -> Unit, onSea
 private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
     val browsed = vm.browsed.collectAsState().value ?: return
     val favouriteUrls = vm.favourites.collectAsState().value.orEmpty().map { it.url }.toSet()
+    val newest by vm.newestUpload.collectAsState()
+    LaunchedEffect(Unit) { vm.loadBrowsedUpdates() }
     var editing by remember { mutableStateOf<BrowsedChannel?>(null) }
     var clearing by remember { mutableStateOf(false) }
     if (browsed.isEmpty()) {
@@ -340,7 +357,7 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
                     Icon(AppIcons.ClearHistory, contentDescription = null, modifier = Modifier.size(20.dp))
                     Text("清除浏览记录", modifier = Modifier.padding(start = 8.dp))
                 }
-                Hint("长按频道可收藏或删除")
+                Hint("标“新”的频道在你上次打开后有新视频 · 长按频道可收藏或删除")
             }
         }
         items(browsed, key = { it.url }) { b ->
@@ -350,6 +367,7 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
                 onLongClick = { editing = b },
                 subtitle = "看过 ${b.visits} 次",
                 favourite = b.url in favouriteUrls,
+                hasNew = vm.hasNew(b.url, b.lastVisitedAt, newest),
             )
         }
     }

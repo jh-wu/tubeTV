@@ -4,6 +4,7 @@ import com.tubetv.app.data.model.ChannelSummary
 import com.tubetv.app.data.model.AudioOption
 import com.tubetv.app.data.model.PlaySource
 import com.tubetv.app.data.model.SubtitleOption
+import com.tubetv.app.data.model.VideoOption
 import com.tubetv.app.data.model.VideoSummary
 import org.schabi.newpipe.extractor.Image
 import org.schabi.newpipe.extractor.MediaFormat
@@ -78,8 +79,7 @@ internal object Conversions {
             .filter { it.isUrl && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP && it.height in 1..MAX_HEIGHT }
             .sortedWith(
                 compareByDescending<VideoStream> { it.height }
-                    // H.264 in MP4 decodes in hardware on every TV; VP9 on most.
-                    .thenBy { if (it.format == MediaFormat.MPEG_4) 0 else 1 }
+                    .thenBy { codecRank(it) }
                     .thenByDescending { it.fps },
             )
             .firstOrNull()
@@ -93,13 +93,39 @@ internal object Conversions {
             )
             .firstOrNull()
         if (video != null && sound != null) {
-            out += PlaySource.Merged(video.content, sound.content, "${video.height}p")
+            out += PlaySource.Merged(video.content, sound.content, qualityLabel(video))
         }
         muxed.filter { it.isUrl && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
             .maxByOrNull { it.height }
             ?.let { out += PlaySource.Progressive(it.content, "${it.height}p") }
         return out
     }
+
+    /**
+     * H.264 decodes in hardware on every TV and VP9 on most; AV1 (also in MP4 files) often only in
+     * software, which stutters, so it goes last.
+     */
+    private fun codecRank(v: VideoStream): Int {
+        val codec = v.codec.orEmpty().lowercase()
+        return when {
+            codec.startsWith("avc") -> 0
+            codec.startsWith("vp9") || codec.startsWith("vp09") -> 1
+            codec.isEmpty() && v.format == MediaFormat.MPEG_4 -> 1
+            codec.isEmpty() -> 2
+            else -> 3
+        }
+    }
+
+    private fun qualityLabel(v: VideoStream) = if (v.fps > 30) "${v.height}p${v.fps}" else "${v.height}p"
+
+    /** One video file per height (H.264 preferred), highest first, for the player's 画质 menu. */
+    fun videoOptions(videoOnly: List<VideoStream>): List<VideoOption> =
+        videoOnly.asSequence()
+            .filter { it.isUrl && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP && it.height > 0 }
+            .sortedWith(compareByDescending<VideoStream> { it.height }.thenBy { codecRank(it) }.thenByDescending { it.fps })
+            .distinctBy { it.height }
+            .map { VideoOption(qualityLabel(it), it.height, it.content) }
+            .toList()
 
     /** WebVTT subtitles, ones written by people before automatic ones, labelled in Chinese. */
     fun subtitleOptions(subtitles: List<SubtitlesStream>): List<SubtitleOption> =

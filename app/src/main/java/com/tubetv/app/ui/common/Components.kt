@@ -108,6 +108,8 @@ fun ChannelCard(
     onLongClick: (() -> Unit)? = null,
     subtitle: String? = formatSubscribers(channel.subscriberCount),
     favourite: Boolean = false,
+    /** Marks a channel that uploaded since the viewer last opened it. */
+    hasNew: Boolean = false,
 ) {
     Column(modifier.width(ChannelCardWidth), horizontalAlignment = Alignment.CenterHorizontally) {
         Box {
@@ -126,6 +128,16 @@ fun ChannelCard(
                     tint = FavouriteColor,
                     modifier = Modifier.align(Alignment.TopEnd).size(28.dp)
                         .background(Color(0xCC000000), CircleShape).padding(4.dp),
+                )
+            }
+            if (hasNew) {
+                Text(
+                    "新",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.TopStart)
+                        .background(NewColor, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
                 )
             }
         }
@@ -219,3 +231,6 @@ fun Message(text: String, onRetry: (() -> Unit)? = null, modifier: Modifier = Mo
 
 /** Gold, for the favourite star. */
 val FavouriteColor = Color(0xFFFFC107)
+
+/** YouTube red, for the "新" mark on channels with new uploads. */
+val NewColor = Color(0xFFE53935)

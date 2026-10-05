@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,6 +83,7 @@ fun VideoGrid(
     emptyText: String = "没有视频",
     showChannel: Boolean = true,
     header: (LazyGridScope.() -> Unit)? = null,
+    gridState: LazyGridState = rememberLazyGridState(),
 ) {
     if (state.items.isEmpty() && header == null) {
         EmptyGrid(state, onLoadMore, emptyText)
@@ -89,6 +92,7 @@ fun VideoGrid(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(VideoCardWidth - 4.dp),
         modifier = modifier,
+        state = gridState,
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),

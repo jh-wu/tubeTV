@@ -67,6 +67,8 @@ class PlayerActivity : ComponentActivity() {
     private lateinit var videoUrl: String
     /** The audio language picked in the menu (an [AudioOption] label); null plays the original. */
     private var audioChoice: String? = null
+    /** The quality picked in the menu (a [VideoOption] label); null plays the default. */
+    private var videoChoice: String? = null
     private val prefs by lazy { getSharedPreferences("player", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -141,6 +143,8 @@ class PlayerActivity : ComponentActivity() {
         var source = p.sources[index]
         val dub = p.audioOptions.firstOrNull { it.label == audioChoice }
         if (source is PlaySource.Merged && dub != null) source = source.copy(audioUrl = dub.url)
+        val quality = p.videoOptions.firstOrNull { it.label == videoChoice }
+        if (source is PlaySource.Merged && quality != null) source = source.copy(videoUrl = quality.url, label = quality.label)
         val media = StreamPlayer.mediaSource(this, app.playerHttp, source, p.title, p.subtitles)
         // A live stream starts at the live edge.
         if (p.isLive) exo.setMediaSource(media) else exo.setMediaSource(media, startMs)
@@ -242,6 +246,7 @@ class PlayerActivity : ComponentActivity() {
     private fun showMenu() {
         val exo = player ?: return
         val items = buildList {
+            if (qualityChoices(exo).size > 1) add("画质：${currentQuality(exo)}" to ::chooseQuality)
             add("字幕：${currentSubtitle(exo) ?: "关闭"}" to ::chooseSubtitle)
             if (audioChoices(exo).size > 1) add("音轨：${currentAudio(exo)}" to ::chooseAudio)
             add("播放速度：${speedLabel(exo.playbackParameters.speed)}" to ::chooseSpeed)
@@ -313,6 +318,44 @@ class PlayerActivity : ComponentActivity() {
                 val groups = exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
                 exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
                     .setOverrideForType(TrackSelectionOverride(groups[i].mediaTrackGroup, 0))
+                    .build()
+            }
+        }
+    }
+
+    /** True when playing separate video and audio files, whose quality is a choice of file. */
+    private fun playingMerged() = playback?.sources?.getOrNull(sourceIndex) is PlaySource.Merged
+
+    /** The video tracks of an adaptive stream, one per height, highest first, with their group. */
+    private fun streamQualities(exo: ExoPlayer): List<Triple<String, Tracks.Group, Int>> =
+        exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO && it.isSupported }
+            .flatMap { g -> (0 until g.length).filter { g.isTrackSupported(it) }.map { g to it } }
+            .sortedByDescending { (g, i) -> g.getTrackFormat(i).height * 1000 + g.getTrackFormat(i).bitrate.coerceAtLeast(0) / 1000 }
+            .distinctBy { (g, i) -> g.getTrackFormat(i).height }
+            .filter { (g, i) -> g.getTrackFormat(i).height > 0 }
+            .map { (g, i) -> Triple("${g.getTrackFormat(i).height}p", g, i) }
+
+    private fun qualityChoices(exo: ExoPlayer): List<String> =
+        if (playingMerged()) playback?.videoOptions.orEmpty().map { it.label } else streamQualities(exo).map { it.first }
+
+    private fun currentQuality(exo: ExoPlayer): String {
+        if (playingMerged()) return videoChoice ?: playback?.sources?.getOrNull(sourceIndex)?.label ?: "默认"
+        val height = exo.videoFormat?.height ?: 0
+        return if (height > 0) "${height}p" else "自动"
+    }
+
+    private fun chooseQuality() {
+        val exo = player ?: return
+        val choices = qualityChoices(exo)
+        choose("画质", choices, choices.indexOf(currentQuality(exo))) { i ->
+            if (playingMerged()) {
+                // Another quality is another file: reload at the same point.
+                videoChoice = choices[i]
+                play(sourceIndex, exo.currentPosition)
+            } else {
+                val (_, group, track) = streamQualities(exo)[i]
+                exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, track))
                     .build()
             }
         }

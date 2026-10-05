@@ -82,7 +82,12 @@ data class Playback(
     val subtitles: List<SubtitleOption> = emptyList(),
     /** The video's audio languages (dubs), when it has more than one; the first is the original. */
     val audioOptions: List<AudioOption> = emptyList(),
+    /** Video files by quality, highest first, for [PlaySource.Merged]. */
+    val videoOptions: List<VideoOption> = emptyList(),
 )
+
+/** One quality of the video, played with [PlaySource.Merged]'s audio in place of its default video. */
+data class VideoOption(val label: String, val height: Int, val url: String)
 
 data class SubtitleOption(val label: String, val language: String?, val url: String)
 

@@ -110,6 +110,36 @@ class HomeViewModel(
         }
     }
 
+    /** Each channel's newest upload time we know of, by channel URL, for the "新" marks. */
+    private val _newestUpload = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val newestUpload: StateFlow<Map<String, Long>> = _newestUpload.asStateFlow()
+    private var browsedUpdatesJob: Job? = null
+
+    private fun noteUploads(channelUrl: String, videos: List<VideoSummary>) {
+        val newest = videos.mapNotNull { it.uploadedAtMs }.maxOrNull() ?: return
+        _newestUpload.update { it + (channelUrl to newest) }
+    }
+
+    /** Whether a channel uploaded in the last week and since it was last opened ([lastVisitedAt]). */
+    fun hasNew(channelUrl: String, lastVisitedAt: Long?, newest: Map<String, Long>): Boolean {
+        val upload = newest[channelUrl] ?: return false
+        return upload > System.currentTimeMillis() - NEW_WINDOW_MS && (lastVisitedAt == null || upload > lastVisitedAt)
+    }
+
+    /** Looks up the newest uploads of browsed channels (favourites come with 最新视频), once per app run. */
+    fun loadBrowsedUpdates() {
+        if (browsedUpdatesJob != null) return
+        browsedUpdatesJob = viewModelScope.launch {
+            val channels = library.browsed.first().take(BROWSED_UPDATES_MAX)
+            val gate = Semaphore(CONCURRENT_CHANNELS)
+            coroutineScope {
+                channels.filter { it.url !in _newestUpload.value }.forEach { c ->
+                    launch { gate.withPermit { runCatching { source.latestVideos(c.url) }.getOrNull()?.let { noteUploads(c.url, it) } } }
+                }
+            }
+        }
+    }
+
     fun refreshLatest() {
         latestJob?.cancel()
         latestJob = viewModelScope.launch {
@@ -125,6 +155,7 @@ class HomeViewModel(
                     async { gate.withPermit { c to runCatching { source.latestVideos(c.url) } } }
                 }.awaitAll()
             }
+            results.forEach { (c, r) -> r.getOrNull()?.let { noteUploads(c.url, it) } }
             val failed = results.filter { it.second.isFailure }
             val videos = mergeLatest(results.mapNotNull { (c, r) -> r.getOrNull()?.map { v -> v.withChannel(c) } })
             _latest.value = LatestState(
@@ -253,6 +284,8 @@ class HomeViewModel(
         private const val RECOMMEND_MAX = 40
         /** A saved list younger than this is shown without asking YouTube again. */
         private const val FEED_FRESH_MS = 30 * 60_000L
+        private const val NEW_WINDOW_MS = 7 * 24 * 3_600_000L
+        private const val BROWSED_UPDATES_MAX = 40
 
         private fun VideoSummary.withChannel(c: ChannelSummary) =
             copy(channelName = channelName ?: c.name, channelUrl = channelUrl ?: c.url)

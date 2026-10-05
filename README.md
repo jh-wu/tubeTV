@@ -14,10 +14,11 @@ favourite channels in place of iyfTV's fixed categories.
   yet, it mixes YouTube's lists). Then YouTube's public lists: 直播, 音乐, 游戏, 电影, 播客.
   YouTube's own personal home feed needs a Google sign-in, which the app doesn't do.
 - While playing, the gear in the control bar picks subtitles (remembered for the next video),
-  the audio language on dubbed videos, and the speed. Videos start in their original audio, and
+  the quality (画质), the audio language on dubbed videos, and the speed. Videos start in their original audio, and
   subtitles are outlined white text with no background.
 - **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first.
-- **收藏频道**: favourite channels. Add one with **收藏** on its channel page; long-press a channel
+- **收藏频道**: favourite channels; a red 新 marks ones that uploaded in the past week since you
+  last opened them (浏览过的频道 too). Add one with **收藏** on its channel page; long-press a channel
   here to remove it. The **+** card opens search.
 - **浏览过的频道**: every channel you open is remembered here, most recent first, with how often
   you opened it. Long-press to favourite or forget one; **清除浏览记录** empties the list
