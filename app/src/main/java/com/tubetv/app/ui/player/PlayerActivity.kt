@@ -63,6 +63,8 @@ class PlayerActivity : ComponentActivity() {
         playerView = PlayerView(this).apply {
             useController = true
             keepScreenOn = true
+            // Switching to another stream after an error keeps the last picture instead of going black.
+            setKeepContentOnPlayerReset(true)
         }
         styleControls(playerView)
         // The control bar opens with the progress bar focused, so left/right seek straight away.

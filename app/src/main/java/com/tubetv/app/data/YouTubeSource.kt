@@ -7,15 +7,15 @@ import com.tubetv.app.data.model.Playback
 import com.tubetv.app.data.model.VideoDetail
 import com.tubetv.app.data.model.VideoSummary
 
-/** YouTube's public lists that need no sign-in, with the titles the home page shows them under. */
+/** YouTube's public lists that need no sign-in, with the tab titles the home page shows them under. */
 object Kiosks {
-    val home = listOf(
-        "live" to "正在直播",
-        "trending_music" to "热门音乐",
-        "trending_gaming" to "热门游戏",
-        "trending_movies_and_shows" to "电影与节目",
-        "trending_podcasts_episodes" to "热门播客",
-    )
+    const val LIVE = "live"
+    const val MUSIC = "trending_music"
+    const val GAMING = "trending_gaming"
+    const val MOVIES = "trending_movies_and_shows"
+    const val PODCASTS = "trending_podcasts_episodes"
+    val home = listOf(LIVE to "直播", MUSIC to "音乐", GAMING to "游戏", MOVIES to "电影", PODCASTS to "播客")
+    fun title(id: String) = home.first { it.first == id }.second
 }
 
 /**

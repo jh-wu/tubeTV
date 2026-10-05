@@ -1,24 +1,30 @@
 package com.tubetv.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,13 +33,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
-import androidx.tv.material3.IconButton
+import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Tab
@@ -54,9 +62,9 @@ import com.tubetv.app.ui.common.Message
 import com.tubetv.app.ui.common.VideoCard
 import com.tubetv.app.ui.common.VideoCardWidth
 import com.tubetv.app.ui.common.VideoGrid
-import com.tubetv.app.ui.common.VideoRow
 import com.tubetv.app.ui.common.formatTime
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(
     vm: HomeViewModel,
@@ -67,54 +75,110 @@ fun HomeScreen(
     onSettings: () -> Unit,
 ) {
     val selected by vm.selectedTab.collectAsState()
-    // Coming back from a video or channel, focus returns to the tab that was open, so it stays selected.
-    val tabFocus = remember { FocusRequester() }
+    // Coming back from a video or channel, focus returns to the tab that was open.
+    val startFocus = remember { FocusRequester() }
 
-    Column(Modifier.fillMaxSize()) {
-        // One row: 继续观看 as an icon tab, the channel tabs, then search and settings.
-        Row(
-            Modifier.fillMaxWidth().padding(start = 40.dp, end = 48.dp, top = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            when (selected) {
+                HomeTab.Home -> HomeFeeds(vm, onOpenVideo, startFocus)
+                HomeTab.Continue -> ContinueWatching(vm, onResume)
+                HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
+                HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
+                HomeTab.Browsed -> Browsed(vm, onOpenChannel)
+            }
+        }
+        // The sections, then search and settings, in a bar down the right edge.
+        Column(
+            Modifier.fillMaxHeight().width(RailWidth)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                .padding(horizontal = 12.dp, vertical = 24.dp)
+                .focusRestorer(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            TabRow(selectedTabIndex = selected.ordinal) {
-                HomeTab.entries.forEach { tab ->
-                    Tab(
-                        selected = tab == selected,
-                        onFocus = { vm.selectTab(tab) },
-                        onClick = { vm.selectTab(tab) },
-                        modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
-                    ) {
-                        if (tab == HomeTab.Continue) {
-                            Icon(
-                                AppIcons.History,
-                                contentDescription = tab.label,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).size(24.dp),
+            HomeTab.entries.forEach { tab ->
+                RailItem(
+                    label = tab.label,
+                    icon = tab.icon,
+                    selected = tab == selected,
+                    onClick = { vm.selectTab(tab) },
+                    modifier = if (tab == selected && tab != HomeTab.Home) Modifier.focusRequester(startFocus) else Modifier,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            RailItem("搜索", Icons.Default.Search, selected = false, onClick = onSearch)
+            RailItem("设置", Icons.Default.Settings, selected = false, onClick = onSettings)
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { startFocus.requestFocus() } }
+}
+
+private val RailWidth = 210.dp
+
+private val HomeTab.icon: ImageVector
+    get() = when (this) {
+        HomeTab.Home -> Icons.Default.Home
+        HomeTab.Continue -> AppIcons.History
+        HomeTab.Latest -> Icons.Default.Notifications
+        HomeTab.Favourites -> Icons.Default.Star
+        HomeTab.Browsed -> Icons.Default.AccountBox
+    }
+
+@Composable
+private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ListItem(
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier,
+        leadingContent = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
+        headlineContent = { Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1) },
+    )
+}
+
+/** 首页: 为你推荐 and YouTube's lists as tabs across the top, the open one as a grid below. */
+@Composable
+private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus: FocusRequester) {
+    val selected by vm.selectedFeed.collectAsState()
+    val feeds by vm.feeds.collectAsState()
+    Column(Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.padding(start = 40.dp, top = 24.dp)) {
+            FeedTab.entries.forEach { tab ->
+                Tab(
+                    selected = tab == selected,
+                    onFocus = { vm.selectFeed(tab) },
+                    onClick = { vm.selectFeed(tab) },
+                    modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
+                ) {
+                    Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                }
+            }
+        }
+        val feed = feeds[selected] ?: FeedState(loading = true)
+        val reload = { vm.loadFeed(selected, force = true) }
+        VideoGrid(
+            GridState(feed.videos, loading = feed.loading, hasMore = false, error = feed.error),
+            onOpen = { onOpenVideo(it.url) },
+            // Only a failed load is worth asking again; the lists have one page.
+            onLoadMore = { if (feed.error != null) reload() },
+            emptyText = "YouTube 没有返回这个列表",
+            header = {
+                fullWidth {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(onClick = reload) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
+                        }
+                        if (selected == FeedTab.ForYou) {
+                            Hint(
+                                if (feed.personal || !feed.loaded) "根据你看过的视频和收藏、浏览过的频道推荐"
+                                else "看过视频、收藏频道之后，这里会按你的喜好推荐",
                             )
-                        } else {
-                            Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
                         }
                     }
                 }
-            }
-            HeaderButton(Icons.Default.Search, "搜索", onSearch)
-            HeaderButton(Icons.Default.Settings, "设置", onSettings)
-        }
-        LaunchedEffect(Unit) { runCatching { tabFocus.requestFocus() } }
-
-        when (selected) {
-            HomeTab.Continue -> ContinueWatching(vm, onResume)
-            HomeTab.Home -> HomeFeedTab(vm, onOpenVideo)
-            HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
-            HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
-            HomeTab.Browsed -> Browsed(vm, onOpenChannel)
-        }
+            },
+        )
     }
-}
-
-@Composable
-private fun HeaderButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Icon(icon, contentDescription = label) }
 }
 
 @Composable
@@ -176,37 +240,6 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
             }
         },
     )
-}
-
-@Composable
-private fun HomeFeedTab(vm: HomeViewModel, onOpenVideo: (String) -> Unit) {
-    val feed by vm.home.collectAsState()
-    when {
-        feed.rows.isEmpty() && feed.loading -> Message("加载中…")
-        feed.rows.isEmpty() && feed.error != null -> Message("加载失败：${feed.error}", onRetry = vm::refreshHome)
-        feed.rows.isEmpty() -> Message("YouTube 没有返回推荐内容", onRetry = vm::refreshHome)
-        else -> LazyColumn(
-            contentPadding = PaddingValues(vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(32.dp),
-        ) {
-            item(key = "__refresh") {
-                Row(
-                    Modifier.padding(horizontal = 48.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedButton(onClick = vm::refreshHome) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
-                    }
-                    Hint("“为你推荐”来自你看过的视频和收藏、浏览过的频道")
-                }
-            }
-            items(feed.rows, key = { it.title }) { row ->
-                VideoRow(row.title, row.videos, onOpen = { onOpenVideo(it.url) })
-            }
-        }
-    }
 }
 
 @Composable

@@ -12,6 +12,7 @@ import com.tubetv.app.data.library.WatchRecord
 import com.tubetv.app.data.model.ChannelSummary
 import com.tubetv.app.data.model.VideoSummary
 import com.tubetv.app.ui.common.userMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -42,10 +44,15 @@ fun interleave(lists: List<List<VideoSummary>>): List<VideoSummary> {
     return out.values.toList()
 }
 
-data class HomeRow(val title: String, val videos: List<VideoSummary>)
-
-/** The 首页 tab: rows of videos, like YouTube's front page. */
-data class HomeFeed(val rows: List<HomeRow> = emptyList(), val loading: Boolean = false, val error: String? = null)
+/** One of the 首页 tabs' video lists. */
+data class FeedState(
+    val videos: List<VideoSummary> = emptyList(),
+    val loading: Boolean = false,
+    val loaded: Boolean = false,
+    val error: String? = null,
+    /** False when 为你推荐 has nothing of the viewer's yet and shows YouTube's lists instead. */
+    val personal: Boolean = true,
+)
 
 /** The newest uploads across the favourite channels. */
 data class LatestState(
@@ -126,50 +133,77 @@ class HomeViewModel(
         }
     }
 
-    private val _home = MutableStateFlow(HomeFeed(loading = true))
-    val home: StateFlow<HomeFeed> = _home.asStateFlow()
-    private var homeJob: Job? = null
+    /** The open tab across the top of 首页, kept like [selectedTab]. */
+    private val _selectedFeed = MutableStateFlow(
+        FeedTab.entries.getOrNull(prefs.getInt(KEY_FEED, 0)) ?: FeedTab.ForYou,
+    )
+    val selectedFeed: StateFlow<FeedTab> = _selectedFeed.asStateFlow()
 
-    init { refreshHome() }
+    private val _feeds = MutableStateFlow<Map<FeedTab, FeedState>>(emptyMap())
+    val feeds: StateFlow<Map<FeedTab, FeedState>> = _feeds.asStateFlow()
+    private val feedJobs = mutableMapOf<FeedTab, Job>()
+
+    init { loadFeed(_selectedFeed.value) }
+
+    fun selectFeed(tab: FeedTab) {
+        loadFeed(tab)
+        if (_selectedFeed.value == tab) return
+        _selectedFeed.value = tab
+        prefs.edit().putInt(KEY_FEED, tab.ordinal).apply()
+    }
+
+    /** Loads a 首页 tab the first time it opens, or again when [force]d (刷新, 重试). */
+    fun loadFeed(tab: FeedTab, force: Boolean = false) {
+        val current = _feeds.value[tab]
+        if (!force && current != null && (current.loading || (current.loaded && current.error == null))) return
+        feedJobs[tab]?.cancel()
+        feedJobs[tab] = viewModelScope.launch {
+            updateFeed(tab) { it.copy(loading = true, error = null) }
+            try {
+                val (videos, personal) = if (tab.kioskId != null) source.kiosk(tab.kioskId) to true else forYou()
+                updateFeed(tab) { FeedState(videos, loaded = true, personal = personal) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                updateFeed(tab) { it.copy(loading = false, loaded = true, error = e.userMessage()) }
+            }
+        }
+    }
+
+    private fun updateFeed(tab: FeedTab, change: (FeedState) -> FeedState) =
+        _feeds.update { it + (tab to change(it[tab] ?: FeedState())) }
 
     /**
-     * Builds the 首页 tab like YouTube's front page: picks for the viewer from what they
-     * watched and the channels they follow or browse, then YouTube's public lists.
+     * 为你推荐: videos related to what the viewer watched, mixed with new uploads from the
+     * channels they follow or browse. With none of those yet, YouTube's own lists mixed together.
      */
-    fun refreshHome() {
-        homeJob?.cancel()
-        homeJob = viewModelScope.launch {
-            _home.value = _home.value.copy(loading = true, error = null)
-            val watched = history.recent(RECOMMEND_FROM_WATCHED * 3).first()
-            val channels = (library.favourites.first() + library.browsed.first().map { it.summary })
-                .distinctBy { it.url }.take(RECOMMEND_FROM_CHANNELS)
-            val gate = Semaphore(CONCURRENT_CHANNELS)
-            val (picks, kiosks) = coroutineScope {
-                val fromWatched = watched.take(RECOMMEND_FROM_WATCHED).map { r ->
-                    async { gate.withPermit { runCatching { source.video(r.videoUrl).related }.getOrDefault(emptyList()) } }
-                }
-                val fromChannels = channels.map { c ->
-                    async { gate.withPermit { runCatching { source.latestVideos(c.url).take(6) }.getOrDefault(emptyList()) } }
-                }
-                val kioskRows = Kiosks.home.map { (id, title) ->
-                    async { title to runCatching { source.kiosk(id) } }
-                }
-                val seen = watched.filter { it.isFinished }.map { it.videoUrl }.toSet()
-                val chosen = interleave(fromWatched.awaitAll() + fromChannels.awaitAll())
-                    .filterNot { it.url in seen }
-                    .take(RECOMMEND_MAX)
-                chosen to kioskRows.awaitAll()
-            }
-            val rows = buildList {
-                if (picks.isNotEmpty()) add(HomeRow("为你推荐", picks))
-                kiosks.forEach { (title, r) -> r.getOrNull()?.takeIf { it.isNotEmpty() }?.let { add(HomeRow(title, it)) } }
-            }
-            _home.value = HomeFeed(
-                rows = rows,
-                error = kiosks.firstNotNullOfOrNull { it.second.exceptionOrNull() }
-                    ?.takeIf { rows.isEmpty() }?.userMessage(),
-            )
+    private suspend fun forYou(): Pair<List<VideoSummary>, Boolean> = coroutineScope {
+        val watched = history.recent(RECOMMEND_FROM_WATCHED * 3).first()
+        val channels = (library.favourites.first() + library.browsed.first().map { it.summary })
+            .distinctBy { it.url }.take(RECOMMEND_FROM_CHANNELS)
+        val gate = Semaphore(CONCURRENT_CHANNELS)
+        val fromWatched = watched.take(RECOMMEND_FROM_WATCHED).map { r ->
+            async { gate.withPermit { runCatching { source.video(r.videoUrl).related }.getOrDefault(emptyList()) } }
         }
+        val fromChannels = channels.map { c ->
+            async { gate.withPermit { runCatching { source.latestVideos(c.url).take(6) }.getOrDefault(emptyList()) } }
+        }
+        val seen = watched.filter { it.isFinished }.map { it.videoUrl }.toSet()
+        val picks = interleave(fromWatched.awaitAll() + fromChannels.awaitAll())
+            .filterNot { it.url in seen }
+            .take(RECOMMEND_MAX)
+        if (picks.isNotEmpty()) return@coroutineScope picks to true
+
+        val kiosks = FeedTab.entries.filter { it.kioskId != null }
+            .map { tab -> async { tab to runCatching { source.kiosk(tab.kioskId!!) } } }
+            .awaitAll()
+        // The other tabs can show what was just fetched instead of asking again.
+        kiosks.forEach { (tab, r) ->
+            r.getOrNull()?.let { list -> if (_feeds.value[tab]?.loaded != true) updateFeed(tab) { FeedState(list, loaded = true) } }
+        }
+        val mixed = interleave(kiosks.mapNotNull { it.second.getOrNull() })
+        if (mixed.isEmpty()) kiosks.firstNotNullOfOrNull { it.second.exceptionOrNull() }?.let { throw it }
+        mixed.take(RECOMMEND_MAX) to false
     }
 
     fun removeFavourite(url: String) = viewModelScope.launch { library.removeFavourite(url) }
@@ -178,7 +212,8 @@ class HomeViewModel(
     fun clearBrowsed() = viewModelScope.launch { library.clearBrowsed() }
 
     companion object {
-        private const val KEY_TAB = "selected_tab_v2"
+        private const val KEY_TAB = "selected_tab_v3"
+        private const val KEY_FEED = "selected_feed"
         private const val CONCURRENT_CHANNELS = 4
         private const val RECOMMEND_FROM_WATCHED = 3
         private const val RECOMMEND_FROM_CHANNELS = 6
@@ -189,10 +224,21 @@ class HomeViewModel(
     }
 }
 
+/** The sections in the bar down the right of the home screen. */
 enum class HomeTab(val label: String) {
-    Continue("继续观看"),
     Home("首页"),
+    Continue("继续观看"),
     Latest("最新视频"),
     Favourites("收藏频道"),
     Browsed("浏览过的频道"),
+}
+
+/** The tabs across the top of 首页: picks for the viewer, then YouTube's public lists. */
+enum class FeedTab(val label: String, val kioskId: String?) {
+    ForYou("为你推荐", null),
+    Live(Kiosks.title(Kiosks.LIVE), Kiosks.LIVE),
+    Music(Kiosks.title(Kiosks.MUSIC), Kiosks.MUSIC),
+    Gaming(Kiosks.title(Kiosks.GAMING), Kiosks.GAMING),
+    Movies(Kiosks.title(Kiosks.MOVIES), Kiosks.MOVIES),
+    Podcasts(Kiosks.title(Kiosks.PODCASTS), Kiosks.PODCASTS),
 }
