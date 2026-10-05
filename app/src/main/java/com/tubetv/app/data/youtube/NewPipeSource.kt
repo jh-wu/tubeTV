@@ -109,6 +109,13 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
         KioskInfo.getInfo(extractor).relatedItems.map { it.toSummary() }
     }
 
+    override suspend fun related(url: String): List<VideoSummary> = io {
+        // Only the watch page: StreamInfo would also unscramble every stream link, which is slow.
+        val extractor = service.getStreamExtractor(url)
+        extractor.fetchPage()
+        extractor.relatedItems?.items.orEmpty().filterIsInstance<StreamInfoItem>().map { it.toSummary() }
+    }
+
     override suspend fun video(url: String): VideoDetail = io {
         val info = streamInfo(url)
         VideoDetail(

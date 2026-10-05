@@ -1,11 +1,14 @@
 package com.tubetv.app.data.model
 
+import kotlinx.serialization.Serializable
+
 /** Anything shown in a grid or row, identified by its YouTube URL. */
 interface Keyed {
     val key: String
 }
 
 /** A video as it appears in a row, grid or search result. */
+@Serializable
 data class VideoSummary(
     val url: String,
     val title: String,

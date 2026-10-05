@@ -35,6 +35,9 @@ interface YouTubeSource {
     suspend fun kiosk(id: String): List<VideoSummary>
 
     suspend fun video(url: String): VideoDetail
+
+    /** The videos YouTube suggests next to [url]; cheaper than [video] when that's all that's needed. */
+    suspend fun related(url: String): List<VideoSummary> = video(url).related
     suspend fun playback(url: String): Playback
 
     /** Drops anything cached for the video, so the next [playback] asks for fresh stream links. */

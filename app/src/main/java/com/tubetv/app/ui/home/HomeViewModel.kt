@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.tubetv.app.data.Kiosks
 import com.tubetv.app.data.YouTubeSource
 import com.tubetv.app.data.library.BrowsedChannel
+import com.tubetv.app.data.library.CachedFeed
 import com.tubetv.app.data.library.ChannelLibrary
+import com.tubetv.app.data.library.FeedCache
 import com.tubetv.app.data.library.WatchHistoryDao
 import com.tubetv.app.data.library.WatchRecord
 import com.tubetv.app.data.model.ChannelSummary
@@ -68,6 +70,7 @@ class HomeViewModel(
     private val history: WatchHistoryDao,
     private val library: ChannelLibrary,
     private val prefs: SharedPreferences,
+    private val cache: FeedCache,
 ) : ViewModel() {
 
     /** The open tab (see [HomeTab]), kept across visits to a video and app restarts. */
@@ -143,7 +146,23 @@ class HomeViewModel(
     val feeds: StateFlow<Map<FeedTab, FeedState>> = _feeds.asStateFlow()
     private val feedJobs = mutableMapOf<FeedTab, Job>()
 
-    init { loadFeed(_selectedFeed.value) }
+    init {
+        viewModelScope.launch {
+            // Show the lists from last time straight away; reload only those that have gone stale.
+            val now = System.currentTimeMillis()
+            val cached = cache.load()
+            _feeds.update { feeds ->
+                feeds + FeedTab.entries.mapNotNull { tab ->
+                    val c = cached[tab.name] ?: return@mapNotNull null
+                    if (feeds[tab] != null) return@mapNotNull null
+                    tab to FeedState(c.videos, loaded = now - c.savedAtMs < FEED_FRESH_MS, personal = c.personal)
+                }
+            }
+            loadFeed(_selectedFeed.value)?.join()
+            // Then the other tabs, one at a time, so switching to them is instant.
+            for (tab in FeedTab.entries) loadFeed(tab)?.join()
+        }
+    }
 
     fun selectFeed(tab: FeedTab) {
         loadFeed(tab)
@@ -152,22 +171,36 @@ class HomeViewModel(
         prefs.edit().putInt(KEY_FEED, tab.ordinal).apply()
     }
 
-    /** Loads a 首页 tab the first time it opens, or again when [force]d (刷新, 重试). */
-    fun loadFeed(tab: FeedTab, force: Boolean = false) {
+    /**
+     * Loads a 首页 tab the first time it opens, when its saved list is stale, or when [force]d (OK on
+     * the tab, 重试). Returns the load, or null when the tab is already loaded or loading.
+     */
+    fun loadFeed(tab: FeedTab, force: Boolean = false): Job? {
         val current = _feeds.value[tab]
-        if (!force && current != null && (current.loading || (current.loaded && current.error == null))) return
+        if (!force && current != null && current.loading) return feedJobs[tab]
+        if (!force && current != null && current.loaded && current.error == null) return null
         feedJobs[tab]?.cancel()
-        feedJobs[tab] = viewModelScope.launch {
+        return viewModelScope.launch {
             updateFeed(tab) { it.copy(loading = true, error = null) }
             try {
                 val (videos, personal) = if (tab.kioskId != null) source.kiosk(tab.kioskId) to true else forYou()
                 updateFeed(tab) { FeedState(videos, loaded = true, personal = personal) }
+                saveFeeds()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                updateFeed(tab) { it.copy(loading = false, loaded = true, error = e.userMessage()) }
+                // A failed reload keeps the list it already had on screen.
+                updateFeed(tab) { it.copy(loading = false, loaded = true, error = e.userMessage().takeIf { _ -> it.videos.isEmpty() }) }
             }
-        }
+        }.also { feedJobs[tab] = it }
+    }
+
+    private suspend fun saveFeeds() {
+        val now = System.currentTimeMillis()
+        cache.save(
+            _feeds.value.filterValues { it.loaded && it.error == null && it.videos.isNotEmpty() }
+                .map { (tab, f) -> tab.name to CachedFeed(now, f.videos, f.personal) }.toMap(),
+        )
     }
 
     private fun updateFeed(tab: FeedTab, change: (FeedState) -> FeedState) =
@@ -183,7 +216,7 @@ class HomeViewModel(
             .distinctBy { it.url }.take(RECOMMEND_FROM_CHANNELS)
         val gate = Semaphore(CONCURRENT_CHANNELS)
         val fromWatched = watched.take(RECOMMEND_FROM_WATCHED).map { r ->
-            async { gate.withPermit { runCatching { source.video(r.videoUrl).related }.getOrDefault(emptyList()) } }
+            async { gate.withPermit { runCatching { source.related(r.videoUrl) }.getOrDefault(emptyList()) } }
         }
         val fromChannels = channels.map { c ->
             async { gate.withPermit { runCatching { source.latestVideos(c.url).take(6) }.getOrDefault(emptyList()) } }
@@ -218,6 +251,8 @@ class HomeViewModel(
         private const val RECOMMEND_FROM_WATCHED = 3
         private const val RECOMMEND_FROM_CHANNELS = 6
         private const val RECOMMEND_MAX = 40
+        /** A saved list younger than this is shown without asking YouTube again. */
+        private const val FEED_FRESH_MS = 30 * 60_000L
 
         private fun VideoSummary.withChannel(c: ChannelSummary) =
             copy(channelName = channelName ?: c.name, channelUrl = channelUrl ?: c.url)

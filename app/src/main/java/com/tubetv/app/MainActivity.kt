@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.tv.material3.Surface
+import com.tubetv.app.data.library.FeedCache
 import com.tubetv.app.ui.channel.ChannelScreen
 import com.tubetv.app.ui.channel.ChannelViewModel
 import com.tubetv.app.ui.common.TubeTheme
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
                     NavHost(nav, startDestination = "home") {
                         composable("home") {
                             HomeScreen(
-                                vm = viewModel { HomeViewModel(app.source, app.history, app.library, app.getSharedPreferences("home", MODE_PRIVATE)) },
+                                vm = viewModel { HomeViewModel(app.source, app.history, app.library, app.getSharedPreferences("home", MODE_PRIVATE), FeedCache(app.filesDir)) },
                                 // Home plays a video straight away; leaving playback comes back here.
                                 onOpenVideo = { url -> play(url, false) },
                                 onOpenChannel = openChannel,
