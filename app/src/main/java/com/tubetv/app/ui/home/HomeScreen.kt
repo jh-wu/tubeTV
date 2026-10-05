@@ -116,7 +116,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) { runCatching { startFocus.requestFocus() } }
 }
 
-private val RailWidth = 80.dp
+private val RailWidth = 48.dp
 
 private val HomeTab.icon: ImageVector
     get() = when (this) {
@@ -133,14 +133,15 @@ private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClic
     Surface(
         selected = selected,
         onClick = onClick,
-        modifier = modifier.size(48.dp),
+        modifier = modifier.size(36.dp),
         shape = SelectableSurfaceDefaults.shape(shape = CircleShape),
     ) {
-        Icon(icon, contentDescription = label, modifier = Modifier.align(Alignment.Center).size(24.dp))
+        Icon(icon, contentDescription = label, modifier = Modifier.align(Alignment.Center).size(20.dp))
     }
 }
 
 /** 首页: 为你推荐 and YouTube's lists as tabs across the top, the open one as a grid below. */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus: FocusRequester) {
     val selected by vm.selectedFeed.collectAsState()
@@ -154,7 +155,8 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TabRow(selectedTabIndex = selected.ordinal) {
+            // Up from the grid lands on the open tab, not whichever tab is above the focused card.
+            TabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.focusRestorer(tabFocus)) {
                 FeedTab.entries.forEach { tab ->
                     Tab(
                         selected = tab == selected,
