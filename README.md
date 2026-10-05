@@ -6,9 +6,10 @@ favourite channels in place of iyfTV's fixed categories.
 
 ## Features (v1)
 
-- An icon bar down the left edge holds the sections (首页, 继续观看, 最新视频, 收藏频道, 浏览过的频道),
+- An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 继续观看, 最新视频, 收藏频道, 浏览过的频道),
   then 搜索 and 设置.
-- **首页** (the default section) has six tabs across the top. **为你推荐** mixes videos related to
+- **首页** (the default section) has six tabs across the top, with **刷新** right after 为你推荐
+  (down past the last video also lands on it). **为你推荐** mixes videos related to
   what you watched recently with new uploads from your favourite and browsed channels (with none
   yet, it mixes YouTube's lists). Then YouTube's public lists: 直播, 音乐, 游戏, 电影, 播客.
   YouTube's own personal home feed needs a Google sign-in, which the app doesn't do.

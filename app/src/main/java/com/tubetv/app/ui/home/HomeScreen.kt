@@ -1,6 +1,16 @@
 package com.tubetv.app.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,15 +88,37 @@ fun HomeScreen(
 ) {
     val selected by vm.selectedTab.collectAsState()
     // Coming back from a video or channel, focus returns to the tab that was open.
-    val startFocus = remember { FocusRequester() }
+    val tabFocus = remember { FocusRequester() }
+    val railFocus = remember { FocusRequester() }
+    val focus = LocalFocusManager.current
+    var railShown by remember { mutableStateOf(false) }
+    val railOffset by animateDpAsState(if (railShown) 0.dp else -RailWidth, label = "rail")
 
-    Row(Modifier.fillMaxSize()) {
-        // The sections, then search and settings, as icons in a bar down the left edge.
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize().onPreviewKeyEvent { e ->
+                // Left at the screen's left edge brings out the section bar.
+                if (e.key != Key.DirectionLeft || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (!focus.moveFocus(FocusDirection.Left)) runCatching { railFocus.requestFocus() }
+                true
+            },
+        ) {
+            when (selected) {
+                HomeTab.Home -> HomeFeeds(vm, onOpenVideo, tabFocus)
+                HomeTab.Continue -> ContinueWatching(vm, onResume)
+                HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
+                HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
+                HomeTab.Browsed -> Browsed(vm, onOpenChannel)
+            }
+        }
+        // The sections, then search and settings, as icons in a bar that slides in over the left edge
+        // while it has focus and hides again when focus moves right.
         Column(
-            Modifier.fillMaxHeight().width(RailWidth)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                .padding(vertical = 24.dp)
-                .focusRestorer(),
+            Modifier.offset(x = railOffset).fillMaxHeight().width(RailWidth)
+                .background(MaterialTheme.colorScheme.surface)
+                .onFocusChanged { railShown = it.hasFocus }
+                .focusRestorer(railFocus)
+                .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -96,24 +128,17 @@ fun HomeScreen(
                     icon = tab.icon,
                     selected = tab == selected,
                     onClick = { vm.selectTab(tab) },
-                    modifier = if (tab == selected && tab != HomeTab.Home) Modifier.focusRequester(startFocus) else Modifier,
+                    modifier = if (tab == selected) Modifier.focusRequester(railFocus) else Modifier,
                 )
             }
             Spacer(Modifier.weight(1f))
             RailItem("搜索", Icons.Default.Search, selected = false, onClick = onSearch)
             RailItem("设置", Icons.Default.Settings, selected = false, onClick = onSettings)
         }
-        Box(Modifier.weight(1f).fillMaxHeight()) {
-            when (selected) {
-                HomeTab.Home -> HomeFeeds(vm, onOpenVideo, startFocus)
-                HomeTab.Continue -> ContinueWatching(vm, onResume)
-                HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
-                HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
-                HomeTab.Browsed -> Browsed(vm, onOpenChannel)
-            }
-        }
     }
-    LaunchedEffect(Unit) { runCatching { startFocus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        runCatching { if (selected == HomeTab.Home) tabFocus.requestFocus() else railFocus.requestFocus() }
+    }
 }
 
 private val RailWidth = 48.dp
@@ -146,31 +171,36 @@ private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClic
 private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus: FocusRequester) {
     val selected by vm.selectedFeed.collectAsState()
     val feeds by vm.feeds.collectAsState()
+    val refreshFocus = remember { FocusRequester() }
+    val focus = LocalFocusManager.current
     Column(Modifier.fillMaxSize()) {
         val feed = feeds[selected] ?: FeedState(loading = true)
         val reload = { vm.loadFeed(selected, force = true) }
-        // The tabs, then 刷新 at the end of the same row.
-        Row(
-            Modifier.padding(start = 40.dp, end = 48.dp, top = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // 刷新 sits in the tab row right after 为你推荐, so the indicator skips its slot.
+        val slot = if (selected == FeedTab.ForYou) 0 else selected.ordinal + 1
+        // Up from the grid lands on the open tab, not whichever tab is above the focused card.
+        TabRow(
+            selectedTabIndex = slot,
+            modifier = Modifier.padding(start = 40.dp, end = 48.dp, top = 24.dp).focusRestorer(tabFocus),
         ) {
-            // Up from the grid lands on the open tab, not whichever tab is above the focused card.
-            TabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.focusRestorer(tabFocus)) {
-                FeedTab.entries.forEach { tab ->
-                    Tab(
-                        selected = tab == selected,
-                        onFocus = { vm.selectFeed(tab) },
-                        onClick = { vm.selectFeed(tab) },
-                        modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
+            FeedTab.entries.forEach { tab ->
+                Tab(
+                    selected = tab == selected,
+                    onFocus = { vm.selectFeed(tab) },
+                    onClick = { vm.selectFeed(tab) },
+                    modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
+                ) {
+                    Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                }
+                if (tab == FeedTab.ForYou) {
+                    OutlinedButton(
+                        onClick = reload,
+                        modifier = Modifier.padding(horizontal = 8.dp).focusRequester(refreshFocus),
                     ) {
-                        Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
                     }
                 }
-            }
-            OutlinedButton(onClick = reload) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
             }
         }
         VideoGrid(
@@ -179,6 +209,12 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
             // Only a failed load is worth asking again; the lists have one page.
             onLoadMore = { if (feed.error != null) reload() },
             emptyText = "YouTube 没有返回这个列表",
+            // Down past the last row of videos goes to 刷新.
+            modifier = Modifier.onPreviewKeyEvent { e ->
+                if (e.key != Key.DirectionDown || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (!focus.moveFocus(FocusDirection.Down)) runCatching { refreshFocus.requestFocus() }
+                true
+            },
         )
     }
 }
