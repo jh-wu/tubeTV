@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -91,15 +92,17 @@ fun HomeScreen(
     val tabFocus = remember { FocusRequester() }
     val railFocus = remember { FocusRequester() }
     val focus = LocalFocusManager.current
-    var railShown by remember { mutableStateOf(false) }
-    val railOffset by animateDpAsState(if (railShown) 0.dp else -RailWidth, label = "rail")
+    // The bar can take focus only while open, so up/down at the content's edges never reach it.
+    var railOpen by remember { mutableStateOf(selected != HomeTab.Home) }
+    var railHadFocus by remember { mutableStateOf(false) }
+    val railOffset by animateDpAsState(if (railOpen) 0.dp else -RailWidth, label = "rail")
 
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize().onPreviewKeyEvent { e ->
                 // Left at the screen's left edge brings out the section bar.
                 if (e.key != Key.DirectionLeft || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (!focus.moveFocus(FocusDirection.Left)) runCatching { railFocus.requestFocus() }
+                if (!focus.moveFocus(FocusDirection.Left)) railOpen = true
                 true
             },
         ) {
@@ -116,7 +119,11 @@ fun HomeScreen(
         Column(
             Modifier.offset(x = railOffset).fillMaxHeight().width(RailWidth)
                 .background(MaterialTheme.colorScheme.surface)
-                .onFocusChanged { railShown = it.hasFocus }
+                .onFocusChanged {
+                    // Close when focus leaves, not on the first report before focus ever arrived.
+                    if (railHadFocus && !it.hasFocus) railOpen = false
+                    railHadFocus = it.hasFocus
+                }
                 .focusRestorer(railFocus)
                 .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -128,17 +135,18 @@ fun HomeScreen(
                     icon = tab.icon,
                     selected = tab == selected,
                     onClick = { vm.selectTab(tab) },
+                    canFocus = railOpen,
                     modifier = if (tab == selected) Modifier.focusRequester(railFocus) else Modifier,
                 )
             }
             Spacer(Modifier.weight(1f))
-            RailItem("搜索", Icons.Default.Search, selected = false, onClick = onSearch)
-            RailItem("设置", Icons.Default.Settings, selected = false, onClick = onSettings)
+            RailItem("搜索", Icons.Default.Search, selected = false, canFocus = railOpen, onClick = onSearch)
+            RailItem("设置", Icons.Default.Settings, selected = false, canFocus = railOpen, onClick = onSettings)
         }
     }
-    LaunchedEffect(Unit) {
-        runCatching { if (selected == HomeTab.Home) tabFocus.requestFocus() else railFocus.requestFocus() }
-    }
+    // Opening the bar moves focus into it, once its items can take focus.
+    LaunchedEffect(railOpen) { if (railOpen) runCatching { railFocus.requestFocus() } }
+    LaunchedEffect(Unit) { if (selected == HomeTab.Home) runCatching { tabFocus.requestFocus() } }
 }
 
 private val RailWidth = 48.dp
@@ -154,11 +162,18 @@ private val HomeTab.icon: ImageVector
 
 /** An icon button that stays highlighted while its section is open; the label is read out, not shown. */
 @Composable
-private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RailItem(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    canFocus: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         selected = selected,
         onClick = onClick,
-        modifier = modifier.size(36.dp),
+        modifier = modifier.focusProperties { this.canFocus = canFocus }.size(36.dp),
         shape = SelectableSurfaceDefaults.shape(shape = CircleShape),
     ) {
         Icon(icon, contentDescription = label, modifier = Modifier.align(Alignment.Center).size(20.dp))
@@ -171,35 +186,29 @@ private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClic
 private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus: FocusRequester) {
     val selected by vm.selectedFeed.collectAsState()
     val feeds by vm.feeds.collectAsState()
-    val refreshFocus = remember { FocusRequester() }
     val focus = LocalFocusManager.current
     Column(Modifier.fillMaxSize()) {
         val feed = feeds[selected] ?: FeedState(loading = true)
         val reload = { vm.loadFeed(selected, force = true) }
-        // 刷新 sits in the tab row right after 为你推荐, so the indicator skips its slot.
-        val slot = if (selected == FeedTab.ForYou) 0 else selected.ordinal + 1
         // Up from the grid lands on the open tab, not whichever tab is above the focused card.
         TabRow(
-            selectedTabIndex = slot,
+            selectedTabIndex = selected.ordinal,
             modifier = Modifier.padding(start = 40.dp, end = 48.dp, top = 24.dp).focusRestorer(tabFocus),
         ) {
             FeedTab.entries.forEach { tab ->
                 Tab(
                     selected = tab == selected,
                     onFocus = { vm.selectFeed(tab) },
-                    onClick = { vm.selectFeed(tab) },
+                    // OK on the open tab reloads it.
+                    onClick = { if (tab == selected) reload() else vm.selectFeed(tab) },
                     modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
                 ) {
-                    Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
-                }
-                if (tab == FeedTab.ForYou) {
-                    OutlinedButton(
-                        onClick = reload,
-                        modifier = Modifier.padding(horizontal = 8.dp).focusRequester(refreshFocus),
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
-                    }
+                    val loading = feeds[tab]?.loading == true
+                    Text(
+                        if (loading) "${tab.label}…" else tab.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
                 }
             }
         }
@@ -209,10 +218,10 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
             // Only a failed load is worth asking again; the lists have one page.
             onLoadMore = { if (feed.error != null) reload() },
             emptyText = "YouTube 没有返回这个列表",
-            // Down past the last row of videos goes to 刷新.
+            // Down past the last row of videos goes back up to the open tab, where OK reloads.
             modifier = Modifier.onPreviewKeyEvent { e ->
                 if (e.key != Key.DirectionDown || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (!focus.moveFocus(FocusDirection.Down)) runCatching { refreshFocus.requestFocus() }
+                if (!focus.moveFocus(FocusDirection.Down)) runCatching { tabFocus.requestFocus() }
                 true
             },
         )
