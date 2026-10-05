@@ -94,17 +94,20 @@ fun HomeScreen(
     val focus = LocalFocusManager.current
     // The bar can take focus only while open, so up/down at the content's edges never reach it.
     var railOpen by remember { mutableStateOf(selected != HomeTab.Home) }
-    var railHadFocus by remember { mutableStateOf(false) }
     val railOffset by animateDpAsState(if (railOpen) 0.dp else -RailWidth, label = "rail")
 
     Box(Modifier.fillMaxSize()) {
         Box(
-            Modifier.fillMaxSize().onPreviewKeyEvent { e ->
-                // Left at the screen's left edge brings out the section bar.
-                if (e.key != Key.DirectionLeft || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (!focus.moveFocus(FocusDirection.Left)) railOpen = true
-                true
-            },
+            Modifier.fillMaxSize()
+                // The bar closes once focus is back in the content. (Closing when the bar reports losing
+                // focus misfired: moving between its icons briefly reports no focus, which closed it mid-move.)
+                .onFocusChanged { if (it.hasFocus) railOpen = false }
+                .onPreviewKeyEvent { e ->
+                    // Left at the screen's left edge brings out the section bar.
+                    if (e.key != Key.DirectionLeft || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    if (!focus.moveFocus(FocusDirection.Left)) railOpen = true
+                    true
+                },
         ) {
             when (selected) {
                 HomeTab.Home -> HomeFeeds(vm, onOpenVideo, tabFocus)
@@ -119,11 +122,6 @@ fun HomeScreen(
         Column(
             Modifier.offset(x = railOffset).fillMaxHeight().width(RailWidth)
                 .background(MaterialTheme.colorScheme.surface)
-                .onFocusChanged {
-                    // Close when focus leaves, not on the first report before focus ever arrived.
-                    if (railHadFocus && !it.hasFocus) railOpen = false
-                    railHadFocus = it.hasFocus
-                }
                 .focusRestorer(railFocus)
                 .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
