@@ -30,8 +30,10 @@ import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
 import com.tubetv.app.TubeTvApp
@@ -75,6 +77,16 @@ class PlayerActivity : ComponentActivity() {
             keepScreenOn = true
             // Switching to another stream after an error keeps the last picture instead of going black.
             setKeepContentOnPlayerReset(true)
+            // Subtitles as outlined white text straight on the picture, with no box behind them.
+            subtitleView?.apply {
+                setApplyEmbeddedStyles(false)
+                setStyle(
+                    CaptionStyleCompat(
+                        Color.WHITE, Color.TRANSPARENT, Color.TRANSPARENT,
+                        CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null,
+                    ),
+                )
+            }
         }
         styleControls(playerView)
         // The control bar opens with the progress bar focused, so left/right seek straight away.
@@ -115,6 +127,7 @@ class PlayerActivity : ComponentActivity() {
     private fun play(index: Int, startMs: Long) {
         val p = playback ?: return
         sourceIndex = index
+        originalAudioPicked = false
         val exo = player ?: StreamPlayer.create(this, app.playerHttp).also {
             player = it
             playerView.player = it
@@ -136,7 +149,34 @@ class PlayerActivity : ComponentActivity() {
         startSaving()
     }
 
+    /** Whether the original audio has been chosen for this video yet (see [pickOriginalAudio]). */
+    private var originalAudioPicked = false
+
+    /**
+     * A stream with several audio languages (HLS can carry YouTube's dubs) would otherwise play the
+     * one matching the TV's language. Start with the one YouTube names as the original instead.
+     */
+    private fun pickOriginalAudio(exo: ExoPlayer, tracks: Tracks) {
+        val audio = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
+        if (audio.isEmpty()) return
+        originalAudioPicked = true
+        if (audio.size < 2) return
+        val original = audio.firstOrNull { it.getTrackFormat(0).label?.contains("original", ignoreCase = true) == true }
+            ?: audio.firstOrNull { it.getTrackFormat(0).roleFlags and C.ROLE_FLAG_MAIN != 0 }
+            ?: audio.firstOrNull { it.getTrackFormat(0).selectionFlags and C.SELECTION_FLAG_DEFAULT != 0 }
+            ?: return
+        if (original.isSelected) return
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .setOverrideForType(TrackSelectionOverride(original.mediaTrackGroup, 0))
+            .build()
+    }
+
     private val listener = object : Player.Listener {
+        override fun onTracksChanged(tracks: Tracks) {
+            val exo = player ?: return
+            if (!originalAudioPicked) pickOriginalAudio(exo, tracks)
+        }
+
         override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_ENDED) {
                 save()
