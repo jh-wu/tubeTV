@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,7 +42,8 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
-import androidx.tv.material3.ListItem
+import androidx.tv.material3.SelectableSurfaceDefaults
+import androidx.tv.material3.Surface
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Tab
@@ -79,22 +81,14 @@ fun HomeScreen(
     val startFocus = remember { FocusRequester() }
 
     Row(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxHeight()) {
-            when (selected) {
-                HomeTab.Home -> HomeFeeds(vm, onOpenVideo, startFocus)
-                HomeTab.Continue -> ContinueWatching(vm, onResume)
-                HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
-                HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
-                HomeTab.Browsed -> Browsed(vm, onOpenChannel)
-            }
-        }
-        // The sections, then search and settings, in a bar down the right edge.
+        // The sections, then search and settings, as icons in a bar down the left edge.
         Column(
             Modifier.fillMaxHeight().width(RailWidth)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                .padding(horizontal = 12.dp, vertical = 24.dp)
+                .padding(vertical = 24.dp)
                 .focusRestorer(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HomeTab.entries.forEach { tab ->
                 RailItem(
@@ -109,11 +103,20 @@ fun HomeScreen(
             RailItem("搜索", Icons.Default.Search, selected = false, onClick = onSearch)
             RailItem("设置", Icons.Default.Settings, selected = false, onClick = onSettings)
         }
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            when (selected) {
+                HomeTab.Home -> HomeFeeds(vm, onOpenVideo, startFocus)
+                HomeTab.Continue -> ContinueWatching(vm, onResume)
+                HomeTab.Latest -> Latest(vm, onOpenVideo, onSearch)
+                HomeTab.Favourites -> Favourites(vm, onOpenChannel, onSearch)
+                HomeTab.Browsed -> Browsed(vm, onOpenChannel)
+            }
+        }
     }
     LaunchedEffect(Unit) { runCatching { startFocus.requestFocus() } }
 }
 
-private val RailWidth = 210.dp
+private val RailWidth = 80.dp
 
 private val HomeTab.icon: ImageVector
     get() = when (this) {
@@ -124,15 +127,17 @@ private val HomeTab.icon: ImageVector
         HomeTab.Browsed -> Icons.Default.AccountBox
     }
 
+/** An icon button that stays highlighted while its section is open; the label is read out, not shown. */
 @Composable
 private fun RailItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    ListItem(
+    Surface(
         selected = selected,
         onClick = onClick,
-        modifier = modifier,
-        leadingContent = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
-        headlineContent = { Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1) },
-    )
+        modifier = modifier.size(48.dp),
+        shape = SelectableSurfaceDefaults.shape(shape = CircleShape),
+    ) {
+        Icon(icon, contentDescription = label, modifier = Modifier.align(Alignment.Center).size(24.dp))
+    }
 }
 
 /** 首页: 为你推荐 and YouTube's lists as tabs across the top, the open one as a grid below. */
