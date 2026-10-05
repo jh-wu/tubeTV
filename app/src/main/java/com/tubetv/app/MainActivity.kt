@@ -56,10 +56,10 @@ class MainActivity : ComponentActivity() {
                         composable("home") {
                             HomeScreen(
                                 vm = viewModel { HomeViewModel(app.source, app.history, app.library, app.getSharedPreferences("home", MODE_PRIVATE)) },
-                                onOpenVideo = openVideo,
+                                // Home plays a video straight away; leaving playback comes back here.
+                                onOpenVideo = { url -> play(url, false) },
                                 onOpenChannel = openChannel,
-                                // Open the video's page under the player, so leaving playback lands there.
-                                onResume = { openVideo(it.videoUrl); play(it.videoUrl, false) },
+                                onResume = { play(it.videoUrl, false) },
                                 onSearch = { nav.navigate("search") },
                                 onSettings = updates::showAbout,
                             )

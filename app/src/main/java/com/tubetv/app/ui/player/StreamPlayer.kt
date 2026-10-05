@@ -15,7 +15,6 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.tubetv.app.data.model.PlaySource
 import okhttp3.OkHttpClient
 
@@ -24,29 +23,22 @@ import okhttp3.OkHttpClient
 object StreamPlayer {
 
     /**
-     * A player that starts in high quality and never makes a quality switch the TV's decoder can't
-     * do in place. Such a switch restarts the decoder, which shows black for a few seconds.
+     * A player that picks one video quality, the best the TV can show up to 1080p, and keeps it.
+     * Stepping between qualities mid-video showed black for seconds on some TVs.
      */
     fun create(context: Context, http: OkHttpClient): ExoPlayer {
         val tracks = DefaultTrackSelector(
             context,
             DefaultTrackSelector.Parameters.Builder(context)
-                .setAllowVideoNonSeamlessAdaptiveness(false)
-                .setAllowVideoMixedMimeTypeAdaptiveness(false)
-                .setAllowVideoMixedDecoderSupportAdaptiveness(false)
+                .setMaxVideoSize(1920, 1080)
+                .setForceHighestSupportedBitrate(true)
                 .build(),
         )
-        // The default first guess at the connection speed picks a low quality and steps up a few seconds in.
-        val bandwidth = DefaultBandwidthMeter.Builder(context).setInitialBitrateEstimate(INITIAL_BITRATE).build()
         return ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(OkHttpDataSource.Factory(http)))
             .setTrackSelector(tracks)
-            .setBandwidthMeter(bandwidth)
             .build()
     }
-
-    /** Enough for 1080p on YouTube; a slower line still steps down, without a black screen. */
-    private const val INITIAL_BITRATE = 10_000_000L
 
     fun mediaSource(context: Context, http: OkHttpClient, source: PlaySource, title: String?): MediaSource {
         val data = OkHttpDataSource.Factory(http)

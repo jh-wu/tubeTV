@@ -146,42 +146,37 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
     val selected by vm.selectedFeed.collectAsState()
     val feeds by vm.feeds.collectAsState()
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = selected.ordinal, modifier = Modifier.padding(start = 40.dp, top = 24.dp)) {
-            FeedTab.entries.forEach { tab ->
-                Tab(
-                    selected = tab == selected,
-                    onFocus = { vm.selectFeed(tab) },
-                    onClick = { vm.selectFeed(tab) },
-                    modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
-                ) {
-                    Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
-                }
-            }
-        }
         val feed = feeds[selected] ?: FeedState(loading = true)
         val reload = { vm.loadFeed(selected, force = true) }
+        // The tabs, then 刷新 at the end of the same row.
+        Row(
+            Modifier.padding(start = 40.dp, end = 48.dp, top = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TabRow(selectedTabIndex = selected.ordinal) {
+                FeedTab.entries.forEach { tab ->
+                    Tab(
+                        selected = tab == selected,
+                        onFocus = { vm.selectFeed(tab) },
+                        onClick = { vm.selectFeed(tab) },
+                        modifier = if (tab == selected) Modifier.focusRequester(tabFocus) else Modifier,
+                    ) {
+                        Text(tab.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                    }
+                }
+            }
+            OutlinedButton(onClick = reload) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
+            }
+        }
         VideoGrid(
             GridState(feed.videos, loading = feed.loading, hasMore = false, error = feed.error),
             onOpen = { onOpenVideo(it.url) },
             // Only a failed load is worth asking again; the lists have one page.
             onLoadMore = { if (feed.error != null) reload() },
             emptyText = "YouTube 没有返回这个列表",
-            header = {
-                fullWidth {
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = reload) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Text(if (feed.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
-                        }
-                        if (selected == FeedTab.ForYou) {
-                            Hint(
-                                if (feed.personal || !feed.loaded) "根据你看过的视频和收藏、浏览过的频道推荐"
-                                else "看过视频、收藏频道之后，这里会按你的喜好推荐",
-                            )
-                        }
-                    }
-                }
-            },
         )
     }
 }
