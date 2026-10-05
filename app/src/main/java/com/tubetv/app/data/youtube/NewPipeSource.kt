@@ -145,6 +145,8 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
             channelUrl = info.uploaderUrl?.ifBlank { null },
             isLive = info.streamType.isLive(),
             sources = sources,
+            subtitles = Conversions.subtitleOptions(info.subtitles.orEmpty()),
+            audioOptions = Conversions.audioOptions(info.audioStreams.orEmpty()),
         )
     }
 

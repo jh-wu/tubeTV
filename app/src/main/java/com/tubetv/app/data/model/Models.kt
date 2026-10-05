@@ -75,7 +75,16 @@ data class Playback(
     val isLive: Boolean,
     /** Ways to play the video, best first; the player falls back down the list. */
     val sources: List<PlaySource>,
+    /** Subtitles that can be turned on while playing. */
+    val subtitles: List<SubtitleOption> = emptyList(),
+    /** The video's audio languages (dubs), when it has more than one; the first is the original. */
+    val audioOptions: List<AudioOption> = emptyList(),
 )
+
+data class SubtitleOption(val label: String, val language: String?, val url: String)
+
+/** One audio language, played with [PlaySource.Merged]'s video in place of its default audio. */
+data class AudioOption(val label: String, val url: String)
 
 sealed interface PlaySource {
     /** Short description for error messages, e.g. "HLS" or "1080p". */

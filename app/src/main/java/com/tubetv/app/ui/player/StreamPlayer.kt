@@ -1,6 +1,7 @@
 package com.tubetv.app.ui.player
 
 import android.content.Context
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -13,9 +14,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.tubetv.app.data.model.PlaySource
+import com.tubetv.app.data.model.SubtitleOption
 import okhttp3.OkHttpClient
 
 /** How the app turns a [PlaySource] into something ExoPlayer can play. */
@@ -40,19 +41,35 @@ object StreamPlayer {
             .build()
     }
 
-    fun mediaSource(context: Context, http: OkHttpClient, source: PlaySource, title: String?): MediaSource {
-        val data = OkHttpDataSource.Factory(http)
+    /** The media for [source], with [subtitles] alongside (off until chosen in the player's menu). */
+    fun mediaSource(
+        context: Context,
+        http: OkHttpClient,
+        source: PlaySource,
+        title: String?,
+        subtitles: List<SubtitleOption> = emptyList(),
+    ): MediaSource {
         val metadata = MediaMetadata.Builder().setTitle(title).build()
-        fun item(url: String, mime: String? = null) =
-            MediaItem.Builder().setUri(url).setMimeType(mime).setMediaMetadata(metadata).build()
-        val factory = DefaultMediaSourceFactory(context).setDataSourceFactory(data)
+        val subtitleConfigs = subtitles.map {
+            MediaItem.SubtitleConfiguration.Builder(Uri.parse(it.url))
+                .setMimeType(MimeTypes.TEXT_VTT)
+                .setLanguage(it.language)
+                .setLabel(it.label)
+                .setId(it.url)
+                .build()
+        }
+        fun item(url: String, mime: String? = null, withSubtitles: Boolean = true) =
+            MediaItem.Builder().setUri(url).setMimeType(mime).setMediaMetadata(metadata)
+                .setSubtitleConfigurations(if (withSubtitles) subtitleConfigs else emptyList())
+                .build()
+        val factory = DefaultMediaSourceFactory(context).setDataSourceFactory(OkHttpDataSource.Factory(http))
         return when (source) {
             is PlaySource.Hls -> factory.createMediaSource(item(source.url, MimeTypes.APPLICATION_M3U8))
             is PlaySource.Dash -> factory.createMediaSource(item(source.url, MimeTypes.APPLICATION_MPD))
-            is PlaySource.Progressive -> ProgressiveMediaSource.Factory(data).createMediaSource(item(source.url))
+            is PlaySource.Progressive -> factory.createMediaSource(item(source.url))
             is PlaySource.Merged -> MergingMediaSource(
-                ProgressiveMediaSource.Factory(data).createMediaSource(item(source.videoUrl)),
-                ProgressiveMediaSource.Factory(data).createMediaSource(item(source.audioUrl)),
+                factory.createMediaSource(item(source.videoUrl)),
+                factory.createMediaSource(item(source.audioUrl, withSubtitles = false)),
             )
         }
     }

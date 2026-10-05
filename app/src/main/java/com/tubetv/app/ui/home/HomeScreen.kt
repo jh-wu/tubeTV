@@ -99,6 +99,9 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize()
+                // The open bar pushes the content right instead of covering it, so right from the bar
+                // finds the content (a page lying under the bar doesn't count as being to its right).
+                .offset(x = RailWidth + railOffset)
                 // The bar closes once focus is back in the content. (Closing when the bar reports losing
                 // focus misfired: moving between its icons briefly reports no focus, which closed it mid-move.)
                 .onFocusChanged { if (it.hasFocus) railOpen = false }

@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.player
 
+import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -20,22 +21,28 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
 import com.tubetv.app.TubeTvApp
 import com.tubetv.app.data.library.WatchRecord
+import com.tubetv.app.data.model.PlaySource
 import com.tubetv.app.data.model.Playback
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Full-screen playback of one video. Resumes from the saved position and saves progress
@@ -56,6 +63,9 @@ class PlayerActivity : ComponentActivity() {
     private var saveJob: Job? = null
     private val attempts = mutableListOf<String>()
     private lateinit var videoUrl: String
+    /** The audio language picked in the menu (an [AudioOption] label); null plays the original. */
+    private var audioChoice: String? = null
+    private val prefs by lazy { getSharedPreferences("player", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +93,9 @@ class PlayerActivity : ComponentActivity() {
             addView(errorView, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
         })
 
+        // The gear in the control bar opens subtitles, audio language and speed.
+        playerView.findViewById<View>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener { showMenu() }
+
         videoUrl = intent.getStringExtra(EXTRA_VIDEO) ?: return finish()
         val fromStart = intent.getBooleanExtra(EXTRA_FROM_START, false)
 
@@ -106,9 +119,16 @@ class PlayerActivity : ComponentActivity() {
             player = it
             playerView.player = it
             it.addListener(listener)
+            // Subtitles come on in the language picked last time, when the video has it.
+            prefs.getString(KEY_SUBTITLE_LANGUAGE, null)?.let { lang ->
+                it.trackSelectionParameters = it.trackSelectionParameters.buildUpon().setPreferredTextLanguage(lang).build()
+            }
         }
         errorView.visibility = View.GONE
-        val media = StreamPlayer.mediaSource(this, app.playerHttp, p.sources[index], p.title)
+        var source = p.sources[index]
+        val dub = p.audioOptions.firstOrNull { it.label == audioChoice }
+        if (source is PlaySource.Merged && dub != null) source = source.copy(audioUrl = dub.url)
+        val media = StreamPlayer.mediaSource(this, app.playerHttp, source, p.title, p.subtitles)
         // A live stream starts at the live edge.
         if (p.isLive) exo.setMediaSource(media) else exo.setMediaSource(media, startMs)
         exo.prepare()
@@ -177,6 +197,106 @@ class PlayerActivity : ComponentActivity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun showMenu() {
+        val exo = player ?: return
+        val items = buildList {
+            add("字幕：${currentSubtitle(exo) ?: "关闭"}" to ::chooseSubtitle)
+            if (audioChoices(exo).size > 1) add("音轨：${currentAudio(exo)}" to ::chooseAudio)
+            add("播放速度：${speedLabel(exo.playbackParameters.speed)}" to ::chooseSpeed)
+        }
+        choose("设置", items.map { it.first }, -1) { items[it].second() }
+    }
+
+    private fun textGroups(exo: ExoPlayer) = exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+
+    private fun Format.name() = label ?: language?.let { Locale.forLanguageTag(it).getDisplayName(Locale.SIMPLIFIED_CHINESE) } ?: "未知"
+
+    private fun currentSubtitle(exo: ExoPlayer) = textGroups(exo).firstOrNull { it.isSelected }?.let { g ->
+        (0 until g.length).firstOrNull { g.isTrackSelected(it) }?.let { g.getTrackFormat(it).name() }
+    }
+
+    private fun chooseSubtitle() {
+        val exo = player ?: return
+        val groups = textGroups(exo)
+        if (groups.isEmpty()) {
+            Toast.makeText(this, "这个视频没有字幕", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val selected = groups.indexOfFirst { it.isSelected }
+        choose("字幕", listOf("关闭") + groups.map { it.getTrackFormat(0).name() }, selected + 1) { i ->
+            val params = exo.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            if (i == 0) {
+                params.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).setPreferredTextLanguage(null)
+                prefs.edit().remove(KEY_SUBTITLE_LANGUAGE).apply()
+            } else {
+                val group = groups[i - 1]
+                params.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
+                group.getTrackFormat(0).language?.let { prefs.edit().putString(KEY_SUBTITLE_LANGUAGE, it).apply() }
+            }
+            exo.trackSelectionParameters = params.build()
+        }
+    }
+
+    /**
+     * The audio languages: YouTube's separate dub files when playing video and audio from separate
+     * files, otherwise the audio tracks inside the stream (HLS can carry several).
+     */
+    private fun audioChoices(exo: ExoPlayer): List<String> {
+        val p = playback ?: return emptyList()
+        if (p.sources.getOrNull(sourceIndex) is PlaySource.Merged) return p.audioOptions.map { it.label }
+        return exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
+            .map { it.getTrackFormat(0).name() }
+    }
+
+    private fun currentAudio(exo: ExoPlayer): String {
+        val p = playback
+        if (p != null && p.sources.getOrNull(sourceIndex) is PlaySource.Merged) {
+            return audioChoice ?: p.audioOptions.firstOrNull()?.label ?: "默认"
+        }
+        return exo.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
+            ?.getTrackFormat(0)?.name() ?: "默认"
+    }
+
+    private fun chooseAudio() {
+        val exo = player ?: return
+        val p = playback ?: return
+        val choices = audioChoices(exo)
+        choose("音轨", choices, choices.indexOf(currentAudio(exo))) { i ->
+            if (p.sources.getOrNull(sourceIndex) is PlaySource.Merged) {
+                // A different language is a different file: reload at the same point.
+                audioChoice = p.audioOptions[i].label
+                play(sourceIndex, exo.currentPosition)
+            } else {
+                val groups = exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO && it.isSupported }
+                exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+                    .setOverrideForType(TrackSelectionOverride(groups[i].mediaTrackGroup, 0))
+                    .build()
+            }
+        }
+    }
+
+    private fun speedLabel(speed: Float) = if (speed == speed.toInt().toFloat()) "${speed.toInt()}x" else "${speed}x"
+
+    private fun chooseSpeed() {
+        val exo = player ?: return
+        val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+        choose("播放速度", speeds.map(::speedLabel), speeds.indexOf(exo.playbackParameters.speed)) { i ->
+            exo.setPlaybackSpeed(speeds[i])
+        }
+    }
+
+    /** A list to pick from with the remote; [checked] marks the current choice (-1 for none). */
+    private fun choose(title: String, labels: List<String>, checked: Int, onChoose: (Int) -> Unit) {
+        val builder = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(title)
+        if (checked >= 0) {
+            builder.setSingleChoiceItems(labels.toTypedArray(), checked) { d, i -> d.dismiss(); onChoose(i) }
+        } else {
+            builder.setItems(labels.toTypedArray()) { d, i -> d.dismiss(); onChoose(i) }
+        }
+        builder.show()
     }
 
     private fun openInYouTube() {
@@ -302,6 +422,7 @@ class PlayerActivity : ComponentActivity() {
         /** White at 50% opacity: visible on any picture without being glaring. */
         private const val FRAME_COLOR = 0x80FFFFFF.toInt()
         private const val EXTRA_VIDEO = "video"
+        private const val KEY_SUBTITLE_LANGUAGE = "subtitle_language"
         private const val EXTRA_FROM_START = "from_start"
 
         fun intent(context: Context, videoUrl: String, fromStart: Boolean = false) =
