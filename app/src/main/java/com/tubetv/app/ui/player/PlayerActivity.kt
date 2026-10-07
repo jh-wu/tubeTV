@@ -20,6 +20,8 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -36,6 +38,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
+import com.tubetv.app.R
 import com.tubetv.app.TubeTvApp
 import com.tubetv.app.data.library.WatchRecord
 import com.tubetv.app.data.model.PlaySource
@@ -57,6 +60,7 @@ class PlayerActivity : ComponentActivity() {
     private val app get() = application as TubeTvApp
     private lateinit var playerView: PlayerView
     private lateinit var errorView: TextView
+    private lateinit var channelButton: ImageButton
     private var player: ExoPlayer? = null
     private var playback: Playback? = null
     private var sourceIndex = 0
@@ -90,6 +94,7 @@ class PlayerActivity : ComponentActivity() {
                 )
             }
         }
+        addChannelButton()
         styleControls(playerView)
         // The control bar opens with the progress bar focused, so left/right seek straight away.
         playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
@@ -117,6 +122,11 @@ class PlayerActivity : ComponentActivity() {
             try {
                 val p = app.source.playback(videoUrl)
                 playback = p
+                p.channelUrl?.let { url ->
+                    channelButton.contentDescription = p.channelName ?: "频道"
+                    channelButton.setOnClickListener { openChannel(url) }
+                    channelButton.visibility = View.VISIBLE
+                }
                 val record = app.history.get(videoUrl)
                 val start = record?.takeIf { !fromStart && !it.isFinished && !p.isLive }?.positionMs ?: 0L
                 play(0, start)
@@ -396,6 +406,41 @@ class PlayerActivity : ComponentActivity() {
         builder.show()
     }
 
+    /**
+     * Puts a channel button at the left end of the control bar, before the time. It stays hidden
+     * until the video's channel is known.
+     */
+    private fun addChannelButton() {
+        val density = resources.displayMetrics.density
+        val size = (52 * density).toInt()
+        channelButton = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_channel)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            val pad = (12 * density).toInt()
+            setPadding(pad, pad, pad, pad)
+            visibility = View.GONE
+        }
+        // The time sits at the left of the bottom bar; it moves into a row after the button.
+        val time = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_time) ?: return
+        val parent = time.parent as? ViewGroup ?: return
+        val index = parent.indexOfChild(time)
+        val params = time.layoutParams
+        parent.removeView(time)
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(channelButton, LinearLayout.LayoutParams(size, size))
+            addView(time, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        }
+        parent.addView(row, index, params)
+    }
+
+    /** Leaves playback for the channel's page (the home screen opens it, see [RESULT_CHANNEL]). */
+    private fun openChannel(url: String) {
+        setResult(RESULT_OK, Intent().putExtra(RESULT_CHANNEL, url))
+        finish()
+    }
+
     private fun openInYouTube() {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(videoUrl))
         try {
@@ -521,6 +566,8 @@ class PlayerActivity : ComponentActivity() {
         private const val EXTRA_VIDEO = "video"
         private const val KEY_SUBTITLE_LANGUAGE = "subtitle_language"
         private const val EXTRA_FROM_START = "from_start"
+        /** The channel URL a finished player asks to open. */
+        const val RESULT_CHANNEL = "channel"
 
         fun intent(context: Context, videoUrl: String, fromStart: Boolean = false) =
             Intent(context, PlayerActivity::class.java)
