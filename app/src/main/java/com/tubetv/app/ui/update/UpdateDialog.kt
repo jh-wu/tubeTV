@@ -28,10 +28,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import com.tubetv.app.TitleLanguages
 import com.tubetv.app.data.update.GitHubReleases
 
 @Composable
-fun UpdateDialog(vm: UpdateViewModel) {
+fun UpdateDialog(vm: UpdateViewModel, onLanguageChanged: () -> Unit) {
     val state by vm.state.collectAsState()
     val context = LocalContext.current
 
@@ -49,7 +50,21 @@ fun UpdateDialog(vm: UpdateViewModel) {
         UpdateState.Hidden -> Unit
         UpdateState.About -> UpdateBox("设置", "当前版本：build ${vm.currentBuild}（${vm.versionName}）\n更新来源：GitHub ${GitHubReleases.REPO}", onBack = vm::dismiss) {
             Choice("检查更新", primary = true, onClick = vm::checkNow)
+            Choice("标题语言：${vm.titleLanguageName}", onClick = vm::chooseLanguage)
             Choice("关闭", onClick = vm::dismiss)
+        }
+        UpdateState.Language -> UpdateBox(
+            "标题语言",
+            "视频标题用这个语言显示（上传者提供了翻译时）。",
+            onBack = vm::showAbout,
+            vertical = true,
+        ) {
+            val current = vm.titleLanguage
+            TitleLanguages.all.forEach { (tag, name) ->
+                Choice(if (tag == current) "✓ $name" else name, primary = tag == current, onClick = {
+                    if (vm.setLanguage(tag)) onLanguageChanged()
+                })
+            }
         }
         UpdateState.Checking -> UpdateBox("正在检查更新…", current, onBack = vm::dismiss) {
             Choice("取消", primary = true, onClick = vm::dismiss)
@@ -89,7 +104,14 @@ private class Choices {
 }
 
 @Composable
-private fun UpdateBox(title: String, message: String, notes: String? = null, onBack: () -> Unit, buttons: @Composable Choices.() -> Unit) {
+private fun UpdateBox(
+    title: String,
+    message: String,
+    notes: String? = null,
+    onBack: () -> Unit,
+    vertical: Boolean = false,
+    buttons: @Composable Choices.() -> Unit,
+) {
     val choices = remember { Choices() }
     Dialog(onDismissRequest = onBack) {
         Surface(shape = RoundedCornerShape(16.dp)) {
@@ -99,7 +121,11 @@ private fun UpdateBox(title: String, message: String, notes: String? = null, onB
                 if (!notes.isNullOrBlank()) {
                     Text(notes, style = MaterialTheme.typography.bodyMedium, maxLines = 8, overflow = TextOverflow.Ellipsis)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) { choices.buttons() }
+                if (vertical) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { choices.buttons() }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) { choices.buttons() }
+                }
             }
         }
     }

@@ -16,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.io.File
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class TubeTvApp : Application() {
@@ -58,7 +60,7 @@ class TubeTvApp : Application() {
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
         playerHttp = http.newBuilder().addInterceptor(StreamHeaders).build()
-        source = NewPipeSource(http)
+        source = NewPipeSource(http, titleLanguage?.let(Locale::forLanguageTag) ?: Locale.getDefault())
         val db = AppDatabase.create(this)
         history = db.watchHistory()
         library = ChannelLibrary(db.channels())
@@ -66,7 +68,20 @@ class TubeTvApp : Application() {
         updates = UpdateChecker(http.newBuilder().readTimeout(60, TimeUnit.SECONDS).build(), BuildConfig.VERSION_CODE)
     }
 
+    private val settings by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
+
+    /** The language tag titles are asked for in (see [TitleLanguages]); null follows the TV's language. */
+    val titleLanguage: String? get() = settings.getString(KEY_TITLE_LANGUAGE, null)
+
+    /** Switches the title language and drops the saved lists, which have titles in the old one. */
+    fun setTitleLanguage(tag: String?) {
+        settings.edit().putString(KEY_TITLE_LANGUAGE, tag).apply()
+        source.setLanguage(tag?.let(Locale::forLanguageTag) ?: Locale.getDefault())
+        File(filesDir, "feeds.json").delete()
+    }
+
     private companion object {
         const val PREFETCH_DELAY_MS = 600L
+        const val KEY_TITLE_LANGUAGE = "title_language"
     }
 }

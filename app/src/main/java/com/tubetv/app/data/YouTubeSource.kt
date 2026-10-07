@@ -49,4 +49,7 @@ interface YouTubeSource {
 
     /** Drops anything cached for the video, so the next [playback] asks for fresh stream links. */
     fun forget(url: String) {}
+
+    /** Asks YouTube for titles in [locale]'s language from now on (where the uploader translated them). */
+    fun setLanguage(locale: java.util.Locale) {}
 }

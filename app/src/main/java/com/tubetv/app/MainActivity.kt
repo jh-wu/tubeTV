@@ -63,7 +63,10 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalPrefetch provides app::prefetch) {
                     Surface(Modifier.fillMaxSize(), shape = RectangleShape) {
                         val updates = viewModel { UpdateViewModel(app.updates, app) }
-                        UpdateDialog(updates)
+                        // A new title language: start the screens over so every list is fetched in it.
+                        UpdateDialog(updates, onLanguageChanged = {
+                            startActivity(Intent(this@MainActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+                        })
                         val nav = rememberNavController()
                         val openVideo = { url: String -> nav.navigate("video/${Uri.encode(url)}") }
                         val openChannel = { url: String -> nav.navigate("channel/${Uri.encode(url)}") }

@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tubetv.app.TitleLanguages
+import com.tubetv.app.TubeTvApp
 import com.tubetv.app.data.update.ApkInstaller
 import com.tubetv.app.data.update.Release
 import com.tubetv.app.data.update.UpdateChecker
@@ -19,6 +21,8 @@ sealed interface UpdateState {
     data object Hidden : UpdateState
     /** The settings dialog: which build is installed, with a button to check for a newer one. */
     data object About : UpdateState
+    /** Picking the language video titles are shown in. */
+    data object Language : UpdateState
     data object Checking : UpdateState
     data class UpToDate(val build: Int) : UpdateState
     data class Available(val release: Release) : UpdateState
@@ -48,6 +52,21 @@ class UpdateViewModel(private val checker: UpdateChecker, private val app: Appli
     fun showAbout() {
         job?.cancel()
         _state.value = UpdateState.About
+    }
+
+    val titleLanguage get() = (app as TubeTvApp).titleLanguage
+    val titleLanguageName get() = TitleLanguages.name(titleLanguage)
+
+    fun chooseLanguage() {
+        _state.value = UpdateState.Language
+    }
+
+    /** Saves the title language; returns whether it changed, in which case the screens must reload. */
+    fun setLanguage(tag: String?): Boolean {
+        _state.value = UpdateState.Hidden
+        if (tag == titleLanguage) return false
+        (app as TubeTvApp).setTitleLanguage(tag)
+        return true
     }
 
     /** Check from the settings dialog: always says what it found. */

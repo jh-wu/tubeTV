@@ -8,6 +8,8 @@ favourite channels in place of iyfTV's fixed categories.
 
 - An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 最新视频, 继续观看, 收藏频道, 浏览过的频道),
   then 搜索 and 设置.
+- 设置 → **标题语言** shows video titles in the chosen language (简体中文, 繁體中文, English, 日本語, 한국어,
+  or the TV's) where the uploader translated them. 最新视频 comes from channel RSS feeds, which carry the original titles.
 - **首页** (the default section) has six tabs across the top. OK on the open tab reloads it;
   down past the last video goes back up to the tab. **为你推荐** shuffles YouTube's suggestions
   next to a random few of the videos you watched lately, and each reload brings ones it hasn't

@@ -42,13 +42,20 @@ import org.schabi.newpipe.extractor.Page as NpPage
  * YouTube through NewPipeExtractor, which reads the same data the YouTube website and apps
  * use, without an API key or a Google account.
  */
-class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : YouTubeSource {
+class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) : YouTubeSource {
 
     private val service: StreamingService = ServiceList.YouTube
+    /** YouTube's lists (直播, 音乐, …) stay those of the TV's country whatever the title language. */
+    private val country = ContentCountry(Locale.getDefault().country.takeIf { it.length == 2 } ?: "US")
 
     init {
-        val country = locale.country.takeIf { it.length == 2 } ?: "US"
-        NewPipe.init(OkHttpDownloader(http), Localization.fromLocale(locale), ContentCountry(country))
+        NewPipe.init(OkHttpDownloader(http), Localization.fromLocale(language), country)
+    }
+
+    override fun setLanguage(locale: Locale) {
+        NewPipe.setupLocalization(Localization.fromLocale(locale), country)
+        synchronized(this) { cached = null }
+        synchronized(playbacks) { playbacks.clear() }
     }
 
     /** The video last opened, so going from its page to the player needs one request, not two. */
