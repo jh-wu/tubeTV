@@ -4,6 +4,7 @@ import com.tubetv.app.data.YouTubeSource
 import com.tubetv.app.data.model.ChannelDetail
 import com.tubetv.app.data.model.ChannelSummary
 import com.tubetv.app.data.model.Page
+import com.tubetv.app.data.model.PlaySource
 import com.tubetv.app.data.model.Playback
 import com.tubetv.app.data.model.VideoDetail
 import com.tubetv.app.data.model.VideoSummary
@@ -11,7 +12,11 @@ import com.tubetv.app.data.youtube.Conversions.absolute
 import com.tubetv.app.data.youtube.Conversions.isLive
 import com.tubetv.app.data.youtube.Conversions.pick
 import com.tubetv.app.data.youtube.Conversions.toSummary
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.InfoItem
@@ -134,7 +139,50 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
         )
     }
 
-    override suspend fun playback(url: String): Playback = io {
+    /** Recent lookups (finished or under way), so a prefetch and the player share one request. */
+    private val playbacks = LinkedHashMap<String, Pair<Long, Deferred<Playback>>>()
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override suspend fun playback(url: String, full: Boolean): Playback =
+        if (full) io { fullPlayback(url) } else lookup(url).await()
+
+    override fun prefetch(url: String) {
+        lookup(url)
+    }
+
+    private fun lookup(url: String): Deferred<Playback> = synchronized(playbacks) {
+        val now = System.currentTimeMillis()
+        playbacks[url]?.let { (at, d) -> if (now - at < CACHE_MS && !d.isCancelled) return d }
+        val d = background.async { quickPlayback(url) ?: fullPlayback(url) }
+        playbacks[url] = now to d
+        while (playbacks.size > MAX_PLAYBACKS) playbacks.remove(playbacks.keys.first())
+        d
+    }
+
+    /**
+     * Just enough to start playing: the watch page's HLS stream. StreamInfo would also unscramble
+     * every stream link with YouTube's player script, which takes seconds on a TV.
+     * Null when there's no HLS stream, or when the full info is already at hand.
+     */
+    private fun quickPlayback(url: String): Playback? {
+        synchronized(this) { if (cached?.second?.url == url) return null }
+        val ex = service.getStreamExtractor(url)
+        ex.fetchPage()
+        val hls = ex.hlsUrl.ifBlank { null } ?: return null
+        return Playback(
+            url = ex.url,
+            title = ex.name.orEmpty(),
+            thumbnailUrl = runCatching { ex.thumbnails.pick(720) }.getOrNull(),
+            channelName = runCatching { ex.uploaderName }.getOrNull()?.ifBlank { null },
+            channelUrl = runCatching { ex.uploaderUrl }.getOrNull()?.ifBlank { null },
+            isLive = ex.streamType.isLive(),
+            sources = listOf(PlaySource.Hls(hls)),
+            subtitles = runCatching { Conversions.subtitleOptions(ex.subtitlesDefault) }.getOrDefault(emptyList()),
+            complete = false,
+        )
+    }
+
+    private fun fullPlayback(url: String): Playback {
         val info = streamInfo(url)
         val sources = Conversions.playSources(
             hlsUrl = info.hlsUrl,
@@ -144,7 +192,7 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
             muxed = info.videoStreams.orEmpty(),
         )
         if (sources.isEmpty()) error("YouTube 没有提供可播放的视频流")
-        Playback(
+        return Playback(
             url = info.url,
             title = info.name.orEmpty(),
             thumbnailUrl = info.thumbnails.pick(720),
@@ -158,8 +206,9 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
         )
     }
 
-    override fun forget(url: String) = synchronized(this) {
-        cached = null
+    override fun forget(url: String) {
+        synchronized(this) { cached = null }
+        synchronized(playbacks) { playbacks.remove(url) }
     }
 
     private fun streamInfo(url: String): StreamInfo {
@@ -180,6 +229,7 @@ class NewPipeSource(http: OkHttpClient, locale: Locale = Locale.getDefault()) : 
     private companion object {
         /** Stream links stay valid for hours; a few minutes is plenty to get from a video's page to its player. */
         const val CACHE_MS = 5 * 60_000L
+        const val MAX_PLAYBACKS = 8
 
         /** YouTube descriptions arrive as HTML. */
         fun plainText(html: String): String =

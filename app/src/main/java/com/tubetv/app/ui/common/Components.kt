@@ -21,8 +21,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -45,6 +47,9 @@ val ChannelCardWidth = 136.dp
 
 private val Dim @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
+/** Called with a video's URL while its card has focus, to get its playback ready (see TubeTvApp.prefetch). */
+val LocalPrefetch = staticCompositionLocalOf<(String) -> Unit> { {} }
+
 @Composable
 fun VideoCard(
     video: VideoSummary,
@@ -55,7 +60,12 @@ fun VideoCard(
     showChannel: Boolean = true,
 ) {
     Column(modifier) {
-        Card(onClick = onClick, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+        val prefetch = LocalPrefetch.current
+        Card(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                .onFocusChanged { if (it.isFocused) prefetch(video.url) },
+        ) {
             Box(Modifier.fillMaxSize()) {
                 AsyncImage(
                     model = video.thumbnailUrl,

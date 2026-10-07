@@ -19,18 +19,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests
         run: ./gradlew testDebugUnitTest
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
+      - name: Build release APK
+        run: ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: tubetv-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: tubetv-apk
+          path: app/build/outputs/apk/release/*.apk
       - name: Publish APK as the latest release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk tubetv.apk
+          cp app/build/outputs/apk/release/app-release.apk tubetv.apk
           # The commit message becomes the "what's new" text in the app's update prompt.
           { git log -1 --format=%B; echo; echo "Built from ${{ github.sha }}. Install: https://github.com/${{ github.repository }}/releases/latest/download/tubetv.apk"; } > notes.txt
           gh release create "build-${{ github.run_number }}" tubetv.apk \

@@ -33,7 +33,10 @@ android {
     }
 
     buildTypes {
+        // The published app is the release build: debug builds run Compose and the YouTube
+        // extraction noticeably slower. Same key as debug, so it installs over earlier builds.
         release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

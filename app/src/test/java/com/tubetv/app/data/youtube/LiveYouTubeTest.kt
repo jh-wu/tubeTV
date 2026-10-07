@@ -57,8 +57,12 @@ class LiveYouTubeTest {
         }
         println("detail: ${detail.title} / ${detail.channel} / related=${detail.related.size}")
 
+        var started = System.currentTimeMillis()
         val playback = source.playback(url)
-        println("sources: ${playback.sources.map { it.label }}")
+        println("quick playback: ${playback.sources.map { it.label }} complete=${playback.complete} in ${System.currentTimeMillis() - started} ms")
+        started = System.currentTimeMillis()
+        val full = source.playback(url, full = true)
+        println("full playback: ${full.sources.map { it.label }} in ${System.currentTimeMillis() - started} ms")
         assertTrue("nothing to play", playback.sources.isNotEmpty())
 
         // Can the player actually fetch the first source?

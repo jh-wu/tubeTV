@@ -51,8 +51,8 @@ release on start and offers **更新**; this needs the repo to be public.
 Requires Android Studio (or the Android SDK with platform 35) and JDK 17+.
 
 ```sh
-./gradlew assembleDebug
-adb install app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleRelease   # what CI publishes; signed with the checked-in debug key
+adb install app/build/outputs/apk/release/app-release.apk
 ```
 
 ## Layout

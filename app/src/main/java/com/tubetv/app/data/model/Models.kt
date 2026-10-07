@@ -84,6 +84,8 @@ data class Playback(
     val audioOptions: List<AudioOption> = emptyList(),
     /** Video files by quality, highest first, for [PlaySource.Merged]. */
     val videoOptions: List<VideoOption> = emptyList(),
+    /** False when only the HLS stream was looked up; the other sources need a full lookup. */
+    val complete: Boolean = true,
 )
 
 /** One quality of the video, played with [PlaySource.Merged]'s audio in place of its default video. */

@@ -38,7 +38,14 @@ interface YouTubeSource {
 
     /** The videos YouTube suggests next to [url]; cheaper than [video] when that's all that's needed. */
     suspend fun related(url: String): List<VideoSummary> = video(url).related
-    suspend fun playback(url: String): Playback
+    /**
+     * How to play [url]. Unless [full], this may return just the HLS stream ([Playback.complete] false),
+     * which is quicker; ask again with [full] when that stream fails.
+     */
+    suspend fun playback(url: String, full: Boolean = false): Playback
+
+    /** Starts fetching [url]'s playback in the background, so pressing play finds it ready. */
+    fun prefetch(url: String) {}
 
     /** Drops anything cached for the video, so the next [playback] asks for fresh stream links. */
     fun forget(url: String) {}

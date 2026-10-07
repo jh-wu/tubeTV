@@ -199,12 +199,26 @@ class PlayerActivity : ComponentActivity() {
                 play(sourceIndex + 1, position)
                 return
             }
+            if (!p.complete) {
+                // Only the HLS stream was looked up: get the others, and go on with the first of them.
+                lifecycleScope.launch {
+                    try {
+                        val full = app.source.playback(videoUrl, full = true)
+                        playback = full
+                        val next = full.sources.indexOfFirst { it !is PlaySource.Hls }
+                        if (next < 0) fail(error) else play(next, position)
+                    } catch (e: Exception) {
+                        fail(e)
+                    }
+                }
+                return
+            }
             if (!refetched) {
                 refetched = true
                 app.source.forget(videoUrl)
                 lifecycleScope.launch {
                     try {
-                        playback = app.source.playback(videoUrl)
+                        playback = app.source.playback(videoUrl, full = true)
                         play(0, position)
                     } catch (e: Exception) {
                         fail(e)
