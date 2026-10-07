@@ -9,14 +9,15 @@ favourite channels in place of iyfTV's fixed categories.
 - An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 继续观看, 最新视频, 收藏频道, 浏览过的频道),
   then 搜索 and 设置.
 - **首页** (the default section) has six tabs across the top. OK on the open tab reloads it;
-  down past the last video goes back up to the tab. **为你推荐** mixes videos related to
-  what you watched recently with new uploads from your favourite and browsed channels (with none
-  yet, it mixes YouTube's lists). Then YouTube's public lists: 直播, 音乐, 游戏, 电影, 播客.
+  down past the last video goes back up to the tab. **为你推荐** shuffles YouTube's suggestions
+  next to a random few of the videos you watched lately, and each reload brings ones it hasn't
+  shown yet (with nothing watched, it mixes YouTube's lists). Then YouTube's public lists: 直播, 音乐, 游戏, 电影, 播客.
   YouTube's own personal home feed needs a Google sign-in, which the app doesn't do.
 - While playing, the gear in the control bar picks subtitles (remembered for the next video),
   the quality (画质), the audio language on dubbed videos, and the speed. Videos start in their original audio, and
   subtitles are outlined white text with no background.
-- **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first.
+- **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first,
+  24 at a time (more load as you scroll down).
 - **收藏频道**: favourite channels; a red 新 marks ones that uploaded in the past week since you
   last opened them (浏览过的频道 too). Add one with **收藏** on its channel page; long-press a channel
   here to remove it. The **+** card opens search.

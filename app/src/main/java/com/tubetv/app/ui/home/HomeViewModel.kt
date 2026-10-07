@@ -54,6 +54,8 @@ data class FeedState(
     val error: String? = null,
     /** False when 为你推荐 has nothing of the viewer's yet and shows YouTube's lists instead. */
     val personal: Boolean = true,
+    /** Goes up each time a reload replaces the list, so the grid can go back to the top. */
+    val generation: Int = 0,
 )
 
 /** The newest uploads across the favourite channels. */
@@ -63,7 +65,14 @@ data class LatestState(
     /** Channels whose videos could not be loaded. */
     val failed: List<String> = emptyList(),
     val error: String? = null,
-)
+    /** How many of [videos] the grid shows; scrolling down shows [LATEST_PAGE] more. */
+    val shown: Int = LATEST_PAGE,
+) {
+    val visible get() = videos.take(shown)
+    val hasMore get() = shown < videos.size
+}
+
+const val LATEST_PAGE = 24
 
 class HomeViewModel(
     private val source: YouTubeSource,
@@ -140,6 +149,10 @@ class HomeViewModel(
         }
     }
 
+    fun showMoreLatest() {
+        _latest.update { if (it.hasMore) it.copy(shown = it.shown + LATEST_PAGE) else it }
+    }
+
     fun refreshLatest() {
         latestJob?.cancel()
         latestJob = viewModelScope.launch {
@@ -160,6 +173,7 @@ class HomeViewModel(
             val videos = mergeLatest(results.mapNotNull { (c, r) -> r.getOrNull()?.map { v -> v.withChannel(c) } })
             _latest.value = LatestState(
                 videos = videos,
+                shown = LATEST_PAGE,
                 failed = failed.map { it.first.name },
                 error = failed.takeIf { videos.isEmpty() && it.isNotEmpty() }
                     ?.first()?.second?.exceptionOrNull()?.userMessage(),
@@ -186,6 +200,7 @@ class HomeViewModel(
                 feeds + FeedTab.entries.mapNotNull { tab ->
                     val c = cached[tab.name] ?: return@mapNotNull null
                     if (feeds[tab] != null) return@mapNotNull null
+                    if (tab == FeedTab.ForYou) rememberShown(c.videos.map { it.url })
                     tab to FeedState(c.videos, loaded = now - c.savedAtMs < FEED_FRESH_MS, personal = c.personal)
                 }
             }
@@ -214,8 +229,12 @@ class HomeViewModel(
         return viewModelScope.launch {
             updateFeed(tab) { it.copy(loading = true, error = null) }
             try {
-                val (videos, personal) = if (tab.kioskId != null) source.kiosk(tab.kioskId) to true else forYou()
-                updateFeed(tab) { FeedState(videos, loaded = true, personal = personal) }
+                if (tab.kioskId != null) {
+                    val videos = source.kiosk(tab.kioskId)
+                    updateFeed(tab) { FeedState(videos, loaded = true, generation = it.generation + 1) }
+                } else {
+                    loadForYou()
+                }
                 saveFeeds()
             } catch (e: CancellationException) {
                 throw e
@@ -237,27 +256,68 @@ class HomeViewModel(
     private fun updateFeed(tab: FeedTab, change: (FeedState) -> FeedState) =
         _feeds.update { it + (tab to change(it[tab] ?: FeedState())) }
 
-    /**
-     * 为你推荐: videos related to what the viewer watched, mixed with new uploads from the
-     * channels they follow or browse. With none of those yet, YouTube's own lists mixed together.
-     */
-    private suspend fun forYou(): Pair<List<VideoSummary>, Boolean> = coroutineScope {
-        val watched = history.recent(RECOMMEND_FROM_WATCHED * 3).first()
-        val channels = (library.favourites.first() + library.browsed.first().map { it.summary })
-            .distinctBy { it.url }.take(RECOMMEND_FROM_CHANNELS)
-        val gate = Semaphore(CONCURRENT_CHANNELS)
-        val fromWatched = watched.take(RECOMMEND_FROM_WATCHED).map { r ->
-            async { gate.withPermit { runCatching { source.related(r.videoUrl) }.getOrDefault(emptyList()) } }
-        }
-        val fromChannels = channels.map { c ->
-            async { gate.withPermit { runCatching { source.latestVideos(c.url).take(6) }.getOrDefault(emptyList()) } }
-        }
-        val seen = watched.filter { it.isFinished }.map { it.videoUrl }.toSet()
-        val picks = interleave(fromWatched.awaitAll() + fromChannels.awaitAll())
-            .filterNot { it.url in seen }
-            .take(RECOMMEND_MAX)
-        if (picks.isNotEmpty()) return@coroutineScope picks to true
+    /** Videos 为你推荐 has shown lately, so a reload brings different ones. */
+    private val shownForYou = LinkedHashSet<String>()
+    /** Each watched video's suggestions, fetched once per app run. */
+    private val relatedCache = HashMap<String, List<VideoSummary>>()
 
+    /**
+     * 为你推荐: suggestions next to a random few of the videos watched lately, shuffled, leaving out
+     * what it showed before, so each reload is a new mix. The list fills in as each answer arrives.
+     * With nothing watched yet, YouTube's own lists mixed together.
+     */
+    private suspend fun loadForYou() = coroutineScope {
+        val watched = history.recent(SEED_POOL).first()
+        if (watched.isEmpty()) {
+            showKioskMix()
+            return@coroutineScope
+        }
+        val watchedUrls = watched.map { it.videoUrl }.toSet()
+        val avoid = watchedUrls + shownForYou
+        val picked = LinkedHashMap<String, VideoSummary>()
+        var replaced = false
+        // All at once: these run on the main thread between requests, so they take turns safely.
+        watched.shuffled().take(SEEDS).map { seed ->
+            async {
+                val related = relatedCache[seed.videoUrl]
+                    ?: runCatching { source.related(seed.videoUrl) }.getOrNull()?.also { relatedCache[seed.videoUrl] = it }
+                    ?: return@async
+                val fresh = related.filter { it.url !in avoid && it.url !in picked }.shuffled().take(PER_SEED)
+                if (fresh.isEmpty()) return@async
+                fresh.forEach { picked[it.url] = it }
+                updateFeed(FeedTab.ForYou) {
+                    if (replaced) {
+                        it.copy(videos = it.videos + fresh)
+                    } else {
+                        it.copy(videos = fresh, personal = true, generation = it.generation + 1)
+                    }
+                }
+                replaced = true
+            }
+        }.awaitAll()
+        if (picked.isEmpty()) {
+            // Everything suggested was shown already: start over rather than show nothing.
+            shownForYou.clear()
+            val again = relatedCache.values.flatten().distinctBy { it.url }.filter { it.url !in watchedUrls }
+            if (again.isEmpty()) {
+                showKioskMix()
+                return@coroutineScope
+            }
+            val mix = again.shuffled().take(RECOMMEND_MAX)
+            mix.forEach { picked[it.url] = it }
+            updateFeed(FeedTab.ForYou) { it.copy(videos = mix, personal = true, generation = it.generation + 1) }
+        }
+        rememberShown(picked.keys)
+        updateFeed(FeedTab.ForYou) { it.copy(loading = false, loaded = true, error = null) }
+    }
+
+    private fun rememberShown(urls: Collection<String>) {
+        shownForYou.addAll(urls)
+        while (shownForYou.size > SHOWN_MAX) shownForYou.remove(shownForYou.first())
+    }
+
+    /** YouTube's lists mixed together, for a viewer with no history yet. */
+    private suspend fun showKioskMix() = coroutineScope {
         val kiosks = FeedTab.entries.filter { it.kioskId != null }
             .map { tab -> async { tab to runCatching { source.kiosk(tab.kioskId!!) } } }
             .awaitAll()
@@ -265,9 +325,11 @@ class HomeViewModel(
         kiosks.forEach { (tab, r) ->
             r.getOrNull()?.let { list -> if (_feeds.value[tab]?.loaded != true) updateFeed(tab) { FeedState(list, loaded = true) } }
         }
-        val mixed = interleave(kiosks.mapNotNull { it.second.getOrNull() })
+        val mixed = interleave(kiosks.mapNotNull { it.second.getOrNull()?.shuffled() })
         if (mixed.isEmpty()) kiosks.firstNotNullOfOrNull { it.second.exceptionOrNull() }?.let { throw it }
-        mixed.take(RECOMMEND_MAX) to false
+        updateFeed(FeedTab.ForYou) {
+            FeedState(mixed.take(RECOMMEND_MAX), loaded = true, personal = false, generation = it.generation + 1)
+        }
     }
 
     fun removeFavourite(url: String) = viewModelScope.launch { library.removeFavourite(url) }
@@ -279,8 +341,12 @@ class HomeViewModel(
         private const val KEY_TAB = "selected_tab_v3"
         private const val KEY_FEED = "selected_feed"
         private const val CONCURRENT_CHANNELS = 4
-        private const val RECOMMEND_FROM_WATCHED = 3
-        private const val RECOMMEND_FROM_CHANNELS = 6
+        /** 为你推荐 picks its starting videos at random from this many watched lately... */
+        private const val SEED_POOL = 20
+        /** ...this many of them, and up to [PER_SEED] suggestions from each. */
+        private const val SEEDS = 5
+        private const val PER_SEED = 10
+        private const val SHOWN_MAX = 400
         private const val RECOMMEND_MAX = 40
         /** A saved list younger than this is shown without asking YouTube again. */
         private const val FEED_FRESH_MS = 30 * 60_000L

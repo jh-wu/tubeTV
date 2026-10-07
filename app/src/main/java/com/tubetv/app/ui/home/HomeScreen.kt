@@ -216,7 +216,7 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
         }
         // A reloaded (or newly opened) list starts from the top.
         val gridState = rememberLazyGridState()
-        LaunchedEffect(feed.videos) { gridState.scrollToItem(0) }
+        LaunchedEffect(selected, feed.generation) { gridState.scrollToItem(0) }
         VideoGrid(
             GridState(feed.videos, loading = feed.loading, hasMore = false, error = feed.error),
             gridState = gridState,
@@ -271,14 +271,15 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
             return
         }
     }
-    val grid = GridState(latest.videos, loading = latest.loading, hasMore = false, error = latest.error)
+    val grid = GridState(latest.visible, loading = latest.loading, hasMore = latest.hasMore, error = latest.error)
     val gridState = rememberLazyGridState()
     LaunchedEffect(latest.videos) { gridState.scrollToItem(0) }
     VideoGrid(
         grid,
         gridState = gridState,
         onOpen = { onOpenVideo(it.url) },
-        onLoadMore = vm::refreshLatest,
+        // Near the bottom, 24 more; after a failed load with nothing shown, 重试 loads again.
+        onLoadMore = { if (latest.videos.isEmpty() && latest.error != null) vm.refreshLatest() else vm.showMoreLatest() },
         emptyText = "收藏的频道还没有视频",
         header = {
             fullWidth {
