@@ -6,7 +6,7 @@ favourite channels in place of iyfTV's fixed categories.
 
 ## Features (v1)
 
-- An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 继续观看, 最新视频, 收藏频道, 浏览过的频道),
+- An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 最新视频, 继续观看, 收藏频道, 浏览过的频道),
   then 搜索 and 设置.
 - **首页** (the default section) has six tabs across the top. OK on the open tab reloads it;
   down past the last video goes back up to the tab. **为你推荐** shuffles YouTube's suggestions

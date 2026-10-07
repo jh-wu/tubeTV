@@ -273,7 +273,7 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
     }
     val grid = GridState(latest.visible, loading = latest.loading, hasMore = latest.hasMore, error = latest.error)
     val gridState = rememberLazyGridState()
-    LaunchedEffect(latest.videos) { gridState.scrollToItem(0) }
+    LaunchedEffect(latest.generation) { gridState.scrollToItem(0) }
     VideoGrid(
         grid,
         gridState = gridState,

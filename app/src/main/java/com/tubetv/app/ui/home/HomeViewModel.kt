@@ -67,6 +67,8 @@ data class LatestState(
     val error: String? = null,
     /** How many of [videos] the grid shows; scrolling down shows [LATEST_PAGE] more. */
     val shown: Int = LATEST_PAGE,
+    /** Goes up each time a refresh starts, so the grid can go back to the top once. */
+    val generation: Int = 0,
 ) {
     val visible get() = videos.take(shown)
     val hasMore get() = shown < videos.size
@@ -110,8 +112,13 @@ class HomeViewModel(
     private var latestChannels: List<ChannelSummary> = emptyList()
 
     init {
-        // Reload the newest videos whenever the set of favourites changes.
         viewModelScope.launch {
+            // Show last time's list straight away while the channels are asked again.
+            cache.load()[LATEST_CACHE]?.videos?.takeIf { it.isNotEmpty() }?.let { videos ->
+                if (_latest.value.videos.isEmpty()) _latest.update { it.copy(videos = videos) }
+                videos.groupBy { it.channelUrl }.forEach { (url, list) -> if (url != null) noteUploads(url, list) }
+            }
+            // Reload the newest videos whenever the set of favourites changes.
             library.favourites.distinctUntilChangedBy { list -> list.map { it.url }.toSet() }.collect {
                 latestChannels = it
                 refreshLatest()
@@ -153,6 +160,10 @@ class HomeViewModel(
         _latest.update { if (it.hasMore) it.copy(shown = it.shown + LATEST_PAGE) else it }
     }
 
+    /**
+     * Asks every favourite channel for its newest uploads. What is on screen stays, and each
+     * channel's videos are swapped in as soon as that channel answers.
+     */
     fun refreshLatest() {
         latestJob?.cancel()
         latestJob = viewModelScope.launch {
@@ -161,23 +172,38 @@ class HomeViewModel(
                 _latest.value = LatestState()
                 return@launch
             }
-            _latest.value = _latest.value.copy(loading = true, error = null)
-            val gate = Semaphore(CONCURRENT_CHANNELS)
-            val results = coroutineScope {
-                channels.map { c ->
-                    async { gate.withPermit { c to runCatching { source.latestVideos(c.url) } } }
-                }.awaitAll()
+            val urls = channels.map { it.url }.toSet()
+            val perChannel = _latest.value.videos.filter { it.channelUrl in urls }
+                .groupBy { it.channelUrl!! }.toMutableMap()
+            val failed = mutableListOf<Pair<ChannelSummary, Exception>>()
+            _latest.update {
+                LatestState(mergeLatest(perChannel.values.toList()), loading = true, generation = it.generation + 1)
             }
-            results.forEach { (c, r) -> r.getOrNull()?.let { noteUploads(c.url, it) } }
-            val failed = results.filter { it.second.isFailure }
-            val videos = mergeLatest(results.mapNotNull { (c, r) -> r.getOrNull()?.map { v -> v.withChannel(c) } })
-            _latest.value = LatestState(
-                videos = videos,
-                shown = LATEST_PAGE,
-                failed = failed.map { it.first.name },
-                error = failed.takeIf { videos.isEmpty() && it.isNotEmpty() }
-                    ?.first()?.second?.exceptionOrNull()?.userMessage(),
-            )
+            val gate = Semaphore(LATEST_CONCURRENCY)
+            coroutineScope {
+                channels.forEach { c ->
+                    launch {
+                        try {
+                            val videos = gate.withPermit { source.latestVideos(c.url) }
+                            noteUploads(c.url, videos)
+                            perChannel[c.url] = videos.map { it.withChannel(c) }
+                            _latest.update { it.copy(videos = mergeLatest(perChannel.values.toList())) }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            failed += c to e
+                        }
+                    }
+                }
+            }
+            _latest.update {
+                it.copy(
+                    loading = false,
+                    failed = failed.map { (c, _) -> c.name },
+                    error = failed.takeIf { _ -> it.videos.isEmpty() }?.firstOrNull()?.second?.userMessage(),
+                )
+            }
+            saveFeeds()
         }
     }
 
@@ -190,6 +216,8 @@ class HomeViewModel(
     private val _feeds = MutableStateFlow<Map<FeedTab, FeedState>>(emptyMap())
     val feeds: StateFlow<Map<FeedTab, FeedState>> = _feeds.asStateFlow()
     private val feedJobs = mutableMapOf<FeedTab, Job>()
+    /** When each tab's list was fetched, so saving one tab doesn't make the others look fresh. */
+    private val feedSavedAt = mutableMapOf<FeedTab, Long>()
 
     init {
         viewModelScope.launch {
@@ -201,6 +229,7 @@ class HomeViewModel(
                     val c = cached[tab.name] ?: return@mapNotNull null
                     if (feeds[tab] != null) return@mapNotNull null
                     if (tab == FeedTab.ForYou) rememberShown(c.videos.map { it.url })
+                    feedSavedAt[tab] = c.savedAtMs
                     tab to FeedState(c.videos, loaded = now - c.savedAtMs < FEED_FRESH_MS, personal = c.personal)
                 }
             }
@@ -235,6 +264,7 @@ class HomeViewModel(
                 } else {
                     loadForYou()
                 }
+                feedSavedAt[tab] = System.currentTimeMillis()
                 saveFeeds()
             } catch (e: CancellationException) {
                 throw e
@@ -245,12 +275,14 @@ class HomeViewModel(
         }.also { feedJobs[tab] = it }
     }
 
+    /** Saves the 首页 tabs' lists and 最新视频's, for the next start. */
     private suspend fun saveFeeds() {
         val now = System.currentTimeMillis()
-        cache.save(
-            _feeds.value.filterValues { it.loaded && it.error == null && it.videos.isNotEmpty() }
-                .map { (tab, f) -> tab.name to CachedFeed(now, f.videos, f.personal) }.toMap(),
-        )
+        val feeds = _feeds.value.filterValues { it.error == null && it.videos.isNotEmpty() }
+            .map { (tab, f) -> tab.name to CachedFeed(feedSavedAt[tab] ?: now, f.videos, f.personal) }.toMap()
+        val latest = _latest.value.videos.takeIf { it.isNotEmpty() }
+            ?.let { mapOf(LATEST_CACHE to CachedFeed(now, it)) }.orEmpty()
+        cache.save(feeds + latest)
     }
 
     private fun updateFeed(tab: FeedTab, change: (FeedState) -> FeedState) =
@@ -338,9 +370,12 @@ class HomeViewModel(
     fun clearBrowsed() = viewModelScope.launch { library.clearBrowsed() }
 
     companion object {
-        private const val KEY_TAB = "selected_tab_v3"
+        private const val KEY_TAB = "selected_tab_v4"
         private const val KEY_FEED = "selected_feed"
         private const val CONCURRENT_CHANNELS = 4
+        /** 最新视频 asks this many channels at once; the one-off check of browsed channels, [CONCURRENT_CHANNELS]. */
+        private const val LATEST_CONCURRENCY = 8
+        private const val LATEST_CACHE = "latest"
         /** 为你推荐 picks its starting videos at random from this many watched lately... */
         private const val SEED_POOL = 20
         /** ...this many of them, and up to [PER_SEED] suggestions from each. */
@@ -354,15 +389,16 @@ class HomeViewModel(
         private const val BROWSED_UPDATES_MAX = 40
 
         private fun VideoSummary.withChannel(c: ChannelSummary) =
-            copy(channelName = channelName ?: c.name, channelUrl = channelUrl ?: c.url)
+            // The favourite's own address, so a refresh can tell which channel each video came from.
+            copy(channelName = channelName ?: c.name, channelUrl = c.url)
     }
 }
 
 /** The sections in the bar down the right of the home screen. */
 enum class HomeTab(val label: String) {
     Home("首页"),
-    Continue("继续观看"),
     Latest("最新视频"),
+    Continue("继续观看"),
     Favourites("收藏频道"),
     Browsed("浏览过的频道"),
 }
