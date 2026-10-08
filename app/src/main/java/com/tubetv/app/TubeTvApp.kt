@@ -1,6 +1,8 @@
 package com.tubetv.app
 
 import android.app.Application
+import com.tubetv.app.data.Connection
+import com.tubetv.app.data.RetryingSource
 import com.tubetv.app.data.YouTubeSource
 import com.tubetv.app.data.library.AppDatabase
 import com.tubetv.app.data.library.ChannelLibrary
@@ -28,6 +30,8 @@ class TubeTvApp : Application() {
     lateinit var playerHttp: OkHttpClient
         private set
     lateinit var source: YouTubeSource
+        private set
+    lateinit var connection: Connection
         private set
     lateinit var history: WatchHistoryDao
         private set
@@ -60,7 +64,8 @@ class TubeTvApp : Application() {
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
         playerHttp = http.newBuilder().addInterceptor(StreamHeaders).build()
-        source = NewPipeSource(http, titleLanguage?.let(Locale::forLanguageTag) ?: Locale.getDefault())
+        connection = Connection(this)
+        source = RetryingSource(NewPipeSource(http, titleLanguage?.let(Locale::forLanguageTag) ?: Locale.getDefault()), connection)
         val db = AppDatabase.create(this)
         history = db.watchHistory()
         library = ChannelLibrary(db.channels())

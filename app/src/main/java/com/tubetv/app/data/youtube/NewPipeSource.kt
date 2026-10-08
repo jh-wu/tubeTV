@@ -162,6 +162,8 @@ class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) 
         playbacks[url]?.let { (at, d) -> if (now - at < CACHE_MS && !d.isCancelled) return d }
         val d = background.async { quickPlayback(url) ?: fullPlayback(url) }
         playbacks[url] = now to d
+        // A failed lookup isn't kept, so asking again (after a network drop, say) tries afresh.
+        d.invokeOnCompletion { e -> if (e != null) synchronized(playbacks) { if (playbacks[url]?.second === d) playbacks.remove(url) } }
         while (playbacks.size > MAX_PLAYBACKS) playbacks.remove(playbacks.keys.first())
         d
     }

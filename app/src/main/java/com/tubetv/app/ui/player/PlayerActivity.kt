@@ -38,6 +38,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
+import com.tubetv.app.MainActivity
 import com.tubetv.app.R
 import com.tubetv.app.TubeTvApp
 import com.tubetv.app.data.library.WatchRecord
@@ -118,13 +119,20 @@ class PlayerActivity : ComponentActivity() {
         videoUrl = intent.getStringExtra(EXTRA_VIDEO) ?: return finish()
         val fromStart = intent.getBooleanExtra(EXTRA_FROM_START, false)
 
+        // While a request waits for a dropped network, say so (it carries on by itself).
+        lifecycleScope.launch {
+            app.connection.waiting.collect { waiting ->
+                if (waiting > 0) showReconnecting() else if (reconnectJob?.isActive != true) hideReconnecting()
+            }
+        }
+
         lifecycleScope.launch {
             try {
                 val p = app.source.playback(videoUrl)
                 playback = p
                 p.channelUrl?.let { url ->
                     channelButton.contentDescription = p.channelName ?: "频道"
-                    channelButton.setOnClickListener { openChannel(url) }
+                    channelButton.setOnClickListener { confirmChannel(url, p.channelName) }
                     channelButton.visibility = View.VISIBLE
                 }
                 val record = app.history.get(videoUrl)
@@ -192,6 +200,10 @@ class PlayerActivity : ComponentActivity() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            if (state == Player.STATE_READY) {
+                reconnectAttempt = 0
+                hideReconnecting()
+            }
             if (state == Player.STATE_ENDED) {
                 save()
                 finish()
@@ -201,6 +213,10 @@ class PlayerActivity : ComponentActivity() {
         override fun onPlayerError(error: PlaybackException) {
             val p = playback ?: return fail(error)
             Log.w("PlayerActivity", "playback error ${StreamPlayer.describe(error)}")
+            if (isNetworkError(error)) {
+                reconnect()
+                return
+            }
             val position = player?.currentPosition ?: 0L
             val status = StreamPlayer.httpStatus(error)
             attempts += "${p.sources[sourceIndex].label}: ${status?.let { "HTTP $it" } ?: error.errorCodeName}"
@@ -433,6 +449,50 @@ class PlayerActivity : ComponentActivity() {
             addView(time, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
         }
         parent.addView(row, index, params)
+    }
+
+    /** Asks before leaving the video for its channel's page. */
+    private fun confirmChannel(url: String, name: String?) {
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("打开频道")
+            .setMessage("停止播放，打开${name?.let { "「$it」" } ?: "这个视频"}的频道页？")
+            .setPositiveButton("打开频道") { _, _ -> openChannel(url) }
+            .setNegativeButton("继续播放", null)
+            .show()
+            .getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
+    }
+
+    private var reconnectJob: Job? = null
+    private var reconnectAttempt = 0
+    private var reconnectShown = false
+
+    /** A stream that can't be reached (Wi-Fi dropped, say) rather than one YouTube refused. */
+    private fun isNetworkError(error: PlaybackException): Boolean =
+        error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+            !app.connection.online.value
+
+    /** Waits for the network and picks the video up where it stopped, as often as it takes. */
+    private fun reconnect() {
+        if (reconnectJob?.isActive == true) return
+        showReconnecting()
+        reconnectJob = lifecycleScope.launch {
+            app.connection.pause(reconnectAttempt++)
+            player?.prepare()
+        }
+    }
+
+    private fun showReconnecting() {
+        if (failed) return
+        reconnectShown = true
+        errorView.text = MainActivity.RECONNECTING
+        errorView.visibility = View.VISIBLE
+    }
+
+    private fun hideReconnecting() {
+        if (!reconnectShown || failed) return
+        reconnectShown = false
+        errorView.visibility = View.GONE
     }
 
     /** Leaves playback for the channel's page (the home screen opens it, see [RESULT_CHANNEL]). */

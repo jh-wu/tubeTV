@@ -18,7 +18,9 @@ favourite channels in place of iyfTV's fixed categories.
 - While playing, the gear in the control bar picks subtitles (remembered for the next video),
   the quality (画质), the audio language on dubbed videos, and the speed. Videos start in their original audio, and
   subtitles are outlined white text with no background.
-  The person icon at the bottom left of the control bar opens the video's channel.
+  The person icon at the bottom left of the control bar opens the video's channel (after asking).
+- When the network drops (Wi-Fi lost, say), the app shows 网络连接不稳定，正在重新连接… and keeps
+  trying; lists load and the video carries on where it stopped once the connection is back.
 - **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first,
   24 at a time (more load as you scroll down).
 - **收藏频道**: favourite channels; a red 新 marks ones that uploaded in the past week since you

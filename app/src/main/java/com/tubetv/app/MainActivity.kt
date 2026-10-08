@@ -9,18 +9,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import androidx.tv.material3.Text
 import com.tubetv.app.data.library.FeedCache
 import com.tubetv.app.ui.channel.ChannelScreen
 import com.tubetv.app.ui.channel.ChannelViewModel
@@ -77,6 +84,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        val reconnecting by app.connection.waiting.collectAsState()
                         NavHost(nav, startDestination = "home") {
                             composable("home") {
                                 HomeScreen(
@@ -111,9 +119,28 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         }
+                        // While requests wait for a dropped network, say so; they carry on by themselves.
+                        if (reconnecting > 0) {
+                            Surface(
+                                Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = androidx.tv.material3.SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.inverseSurface),
+                            ) {
+                                Text(
+                                    RECONNECTING,
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    companion object {
+        const val RECONNECTING = "网络连接不稳定，正在重新连接…"
     }
 }
