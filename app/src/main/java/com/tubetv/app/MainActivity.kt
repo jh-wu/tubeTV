@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -123,13 +124,14 @@ class MainActivity : ComponentActivity() {
                         if (reconnecting > 0) {
                             Surface(
                                 Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = androidx.tv.material3.SurfaceDefaults.colors(containerColor = MaterialTheme.colorScheme.inverseSurface),
+                                shape = RoundedCornerShape(8.dp),
+                                // Dark and see-through like the player's messages, so it doesn't glare over the page.
+                                colors = androidx.tv.material3.SurfaceDefaults.colors(containerColor = Color(0xE0000000)),
                             ) {
                                 Text(
                                     RECONNECTING,
-                                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                                 )
                             }
