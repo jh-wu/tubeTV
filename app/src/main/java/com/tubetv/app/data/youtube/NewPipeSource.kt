@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.services.youtube.YoutubeService
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
@@ -39,21 +39,47 @@ import java.util.Locale
 import org.schabi.newpipe.extractor.Page as NpPage
 
 /**
+ * NewPipe's YouTube, asking in the chosen language. NewPipe lists only en-GB as a language it
+ * supports for YouTube, so its own service sends every request in English: translated titles
+ * came back in English while channel RSS feeds (which have no language) gave the originals.
+ */
+private class LocalizedYouTube : YoutubeService(0) {
+    override fun getSupportedLocalizations(): List<Localization> = listOf(NewPipe.getPreferredLocalization())
+}
+
+/**
+ * The YouTube language for [locale]. YouTube knows Chinese only as zh-CN, zh-TW and zh-HK, so a
+ * TV set to bare "zh" or a script (zh-Hans, zh-Hant) still gets Chinese rather than English.
+ */
+fun youTubeLocalization(locale: Locale): Localization {
+    if (locale.language != "zh") return Localization.fromLocale(locale)
+    val country = when {
+        locale.country in setOf("TW", "HK") -> locale.country
+        locale.country == "MO" -> "HK"
+        locale.country.isEmpty() && locale.script == "Hant" -> "TW"
+        locale.country.isEmpty() -> "CN"
+        locale.script == "Hant" -> "TW"
+        else -> "CN"
+    }
+    return Localization("zh", country)
+}
+
+/**
  * YouTube through NewPipeExtractor, which reads the same data the YouTube website and apps
  * use, without an API key or a Google account.
  */
 class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) : YouTubeSource {
 
-    private val service: StreamingService = ServiceList.YouTube
+    private val service: StreamingService = LocalizedYouTube()
     /** YouTube's lists (直播, 音乐, …) stay those of the TV's country whatever the title language. */
     private val country = ContentCountry(Locale.getDefault().country.takeIf { it.length == 2 } ?: "US")
 
     init {
-        NewPipe.init(OkHttpDownloader(http), Localization.fromLocale(language), country)
+        NewPipe.init(OkHttpDownloader(http), youTubeLocalization(language), country)
     }
 
     override fun setLanguage(locale: Locale) {
-        NewPipe.setupLocalization(Localization.fromLocale(locale), country)
+        NewPipe.setupLocalization(youTubeLocalization(locale), country)
         synchronized(this) { cached = null }
         synchronized(playbacks) { playbacks.clear() }
     }

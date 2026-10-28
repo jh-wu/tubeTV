@@ -24,7 +24,7 @@ class LiveYouTubeTest {
         assumeTrue(System.getenv("TUBETV_LIVE") == "1")
         for (tag in listOf("zh-CN", "zh-TW", "zh-HK", "zh-Hans-CN", "zh-Hant-TW", "zh-Hans", "zh", "en", "en-US")) {
             source.setLanguage(Locale.forLanguageTag(tag))
-            println("locale $tag -> ${org.schabi.newpipe.extractor.ServiceList.YouTube.localization.localizationCode}")
+            println("locale $tag -> ${youTubeLocalization(Locale.forLanguageTag(tag)).localizationCode}")
         }
         source.setLanguage(Locale.SIMPLIFIED_CHINESE)
         val found = source.searchChannels("在家做生鱼片", null).items.take(3)
@@ -34,7 +34,9 @@ class LiveYouTubeTest {
         println("lang rss: ${rss.map { it.title }}")
         for (tag in listOf("zh-CN", "zh-TW", "en")) {
             source.setLanguage(Locale.forLanguageTag(tag))
-            println("lang $tag tab: ${source.channelVideos(ch.url, null).items.take(4).map { it.title }}")
+            println("lang $tag tab: ${source.channelVideos(ch.url, null).items.take(4).map { "${it.title} [${it.uploaded} ${it.uploadedAtMs} views=${it.viewCount} ${it.durationSec}s]" }}")
+            println("lang $tag channel: ${runCatching { source.channel(ch.url).let { "${it.name} subs=${it.subscriberCount}" } }}")
+            println("lang $tag kiosk: ${runCatching { source.kiosk(com.tubetv.app.data.Kiosks.home.first().first).take(2).map { "${it.title} [${it.uploaded} ${it.uploadedAtMs} views=${it.viewCount}]" } }}")
             println("lang $tag search: ${runCatching { source.searchVideos(ch.name, null).items.take(4).map { it.title } }}")
             println("lang $tag related: ${runCatching { source.related(rss.first().url).take(3).map { it.title } }}")
             println("lang $tag playback: ${runCatching { source.playback(rss.first().url).title }}")
