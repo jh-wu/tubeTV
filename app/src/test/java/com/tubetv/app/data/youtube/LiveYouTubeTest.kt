@@ -19,6 +19,29 @@ class LiveYouTubeTest {
     private val http = OkHttpClient()
     private val source = NewPipeSource(http, Locale.SIMPLIFIED_CHINESE)
 
+    /** Prints one channel's titles from each kind of request, in several languages, to compare them. */
+    @Test fun titleLanguages() = runBlocking {
+        assumeTrue(System.getenv("TUBETV_LIVE") == "1")
+        for (tag in listOf("zh-CN", "zh-TW", "zh-HK", "zh-Hans-CN", "zh-Hant-TW", "zh-Hans", "zh", "en", "en-US")) {
+            source.setLanguage(Locale.forLanguageTag(tag))
+            println("locale $tag -> ${org.schabi.newpipe.extractor.ServiceList.YouTube.localization.localizationCode}")
+        }
+        source.setLanguage(Locale.SIMPLIFIED_CHINESE)
+        val found = source.searchChannels("在家做生鱼片", null).items.take(3)
+        println("lang channels: ${found.map { "${it.name} ${it.url}" }}")
+        val ch = found.first()
+        val rss = source.latestVideos(ch.url).take(4)
+        println("lang rss: ${rss.map { it.title }}")
+        for (tag in listOf("zh-CN", "zh-TW", "en")) {
+            source.setLanguage(Locale.forLanguageTag(tag))
+            println("lang $tag tab: ${source.channelVideos(ch.url, null).items.take(4).map { it.title }}")
+            println("lang $tag search: ${runCatching { source.searchVideos(ch.name, null).items.take(4).map { it.title } }}")
+            println("lang $tag related: ${runCatching { source.related(rss.first().url).take(3).map { it.title } }}")
+            println("lang $tag playback: ${runCatching { source.playback(rss.first().url).title }}")
+        }
+        source.setLanguage(Locale.SIMPLIFIED_CHINESE)
+    }
+
     @Test fun searchChannelVideosAndPlay() = runBlocking {
         assumeTrue(System.getenv("TUBETV_LIVE") == "1")
 
