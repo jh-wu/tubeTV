@@ -9,7 +9,8 @@ sealed interface Load<out T> {
 }
 
 fun Throwable.userMessage(): String {
-    if (generateSequence(this) { it.cause }.any { it is SignInConfirmNotBotException }) {
+    // NewPipe recognises the "not a bot" check only in English; in other languages it's LOGIN_REQUIRED.
+    if (generateSequence(this) { it.cause }.any { it is SignInConfirmNotBotException || it.message?.contains("LOGIN_REQUIRED") == true }) {
         return "YouTube 暂时要求这个网络登录验证（“确认你不是机器人”）。请稍后再试，或用 YouTube 应用打开。"
     }
     return listOfNotNull(javaClass.simpleName, message, cause?.let { "(${it.javaClass.simpleName}: ${it.message})" })

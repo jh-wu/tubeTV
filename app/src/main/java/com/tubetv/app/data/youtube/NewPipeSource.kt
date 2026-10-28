@@ -52,7 +52,8 @@ private class LocalizedYouTube : YoutubeService(0) {
  * TV set to bare "zh" or a script (zh-Hans, zh-Hant) still gets Chinese rather than English.
  */
 fun youTubeLocalization(locale: Locale): Localization {
-    if (locale.language != "zh") return Localization.fromLocale(locale)
+    // Localization.fromLocale would make "en" into "en-", which YouTube rejects as an invalid argument.
+    if (locale.language != "zh") return Localization(locale.language, locale.country.ifEmpty { null })
     val country = when {
         locale.country in setOf("TW", "HK") -> locale.country
         locale.country == "MO" -> "HK"

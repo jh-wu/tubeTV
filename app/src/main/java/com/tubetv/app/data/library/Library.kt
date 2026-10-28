@@ -21,6 +21,8 @@ class ChannelLibrary(private val dao: ChannelDao, private val now: () -> Long = 
     suspend fun visited(channel: ChannelSummary) {
         val visits = (dao.getBrowsed(channel.url)?.visits ?: 0) + 1
         dao.upsertBrowsed(BrowsedChannel(channel.url, channel.name, channel.avatarUrl, channel.subscriberCount, now(), visits))
+        // A favourite keeps the name it had when added; refresh it, e.g. after the title language changed.
+        dao.refreshFavourite(channel.url, channel.name, channel.avatarUrl, channel.subscriberCount)
     }
 
     suspend fun forget(url: String) = dao.removeBrowsed(url)

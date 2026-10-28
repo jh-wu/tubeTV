@@ -47,6 +47,10 @@ interface ChannelDao {
     @Query("DELETE FROM favourite_channels WHERE url = :url")
     suspend fun removeFavourite(url: String)
 
+    /** Brings a favourite's name and picture up to date (a no-op when [url] isn't a favourite). */
+    @Query("UPDATE favourite_channels SET name = :name, avatarUrl = :avatarUrl, subscriberCount = :subscriberCount WHERE url = :url")
+    suspend fun refreshFavourite(url: String, name: String, avatarUrl: String?, subscriberCount: Long)
+
     @Query("SELECT * FROM browsed_channels ORDER BY lastVisitedAt DESC LIMIT :limit")
     fun browsed(limit: Int = 200): Flow<List<BrowsedChannel>>
 

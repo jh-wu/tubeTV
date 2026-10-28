@@ -33,7 +33,7 @@ class OkHttpDownloader(private val client: OkHttpClient) : Downloader() {
                 resp.code,
                 resp.message,
                 resp.headers.toMultimap(),
-                resp.body?.string(),
+                resp.body?.string()?.let(ChineseCounts::expand),
                 resp.request.url.toString(),
             )
         }

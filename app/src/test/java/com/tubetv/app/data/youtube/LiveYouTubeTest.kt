@@ -75,7 +75,8 @@ class LiveYouTubeTest {
         val url = videos.items.first { !it.isLive }.url
         val detail = try {
             source.video(url)
-        } catch (e: SignInConfirmNotBotException) {
+        } catch (e: Exception) {
+            if (e !is SignInConfirmNotBotException && e.message?.contains("LOGIN_REQUIRED") != true) throw e
             // YouTube often asks data-centre addresses such as CI runners to sign in; homes rarely see this.
             println("video page: YouTube asked this IP to sign in (${e.message}); playback not checked")
             return@runBlocking
