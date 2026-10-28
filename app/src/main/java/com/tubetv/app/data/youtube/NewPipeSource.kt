@@ -163,6 +163,7 @@ class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) 
             durationSec = info.duration,
             viewCount = info.viewCount,
             uploaded = info.textualUploadDate?.ifBlank { null },
+            uploadedAtMs = runCatching { info.uploadDate?.instant?.toEpochMilli() }.getOrNull(),
             isLive = info.streamType.isLive(),
             related = info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toSummary() },
         )

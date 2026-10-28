@@ -42,6 +42,7 @@ import com.tubetv.app.ui.common.Message
 import com.tubetv.app.ui.common.VideoRow
 import com.tubetv.app.ui.common.formatTime
 import com.tubetv.app.ui.common.formatViews
+import com.tubetv.app.ui.common.uploadedText
 import com.tubetv.app.ui.common.userMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -136,7 +137,7 @@ private fun VideoContent(
                     Text(d.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     val meta = listOfNotNull(
                         if (d.isLive) "直播中" else d.durationSec.takeIf { it > 0 }?.let { formatTime(it * 1000) },
-                        d.uploaded,
+                        uploadedText(d.uploadedAtMs, d.uploaded),
                         formatViews(d.viewCount),
                     ).joinToString(" · ")
                     if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodyMedium)

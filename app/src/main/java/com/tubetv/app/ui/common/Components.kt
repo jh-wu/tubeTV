@@ -41,8 +41,10 @@ import coil.compose.AsyncImage
 import com.tubetv.app.data.model.ChannelSummary
 import com.tubetv.app.data.model.VideoSummary
 
-/** Width of a video card in a row; grids fit as many of about this width as the screen allows. */
+/** Width of a video card in a row (grids instead show [VideoGridColumns] across). */
 val VideoCardWidth = 200.dp
+/** Videos across in a grid: three, so the pictures are big enough to see from the sofa. */
+const val VideoGridColumns = 3
 val ChannelCardWidth = 136.dp
 
 private val Dim @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -103,7 +105,11 @@ fun VideoCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp),
         )
-        val sub = subtitle ?: videoSubtitle(video.channelName, video.viewCount, video.uploaded, showChannel)
+        // The channel on one line; when it came out and its views (or [subtitle]) on the next.
+        if (showChannel && !video.channelName.isNullOrBlank()) {
+            Text(video.channelName, style = MaterialTheme.typography.bodySmall, color = Dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        val sub = subtitle ?: videoMeta(video.viewCount, uploadedText(video.uploadedAtMs, video.uploaded))
         if (sub.isNotBlank()) {
             Text(sub, style = MaterialTheme.typography.bodySmall, color = Dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }

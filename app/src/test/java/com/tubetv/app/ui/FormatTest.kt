@@ -3,7 +3,9 @@ package com.tubetv.app.ui
 import com.tubetv.app.data.model.VideoSummary
 import com.tubetv.app.ui.common.formatCount
 import com.tubetv.app.ui.common.formatTime
-import com.tubetv.app.ui.common.videoSubtitle
+import com.tubetv.app.ui.common.timeAgo
+import com.tubetv.app.ui.common.uploadedText
+import com.tubetv.app.ui.common.videoMeta
 import com.tubetv.app.ui.home.interleave
 import com.tubetv.app.ui.home.mergeLatest
 import org.junit.Assert.assertEquals
@@ -25,9 +27,22 @@ class FormatTest {
         assertEquals("1:02:03", formatTime((3600 + 2 * 60 + 3) * 1000L))
     }
 
-    @Test fun subtitleLeavesOutUnknowns() {
-        assertEquals("频道 · 3天前 · 1.5万次观看", videoSubtitle("频道", 15_000, "3天前"))
-        assertEquals("3天前", videoSubtitle("频道", -1, "3天前", showChannel = false))
+    @Test fun metaLeavesOutUnknowns() {
+        assertEquals("3天前 · 1.5万次观看", videoMeta(15_000, "3天前"))
+        assertEquals("3天前", videoMeta(-1, "3天前"))
+    }
+
+    @Test fun timeAgoLikeYouTube() {
+        val now = 1_000_000_000_000L
+        val hour = 3_600_000L
+        assertEquals("刚刚", timeAgo(now - 1_000, now))
+        assertEquals("5分钟前", timeAgo(now - 5 * 60_000, now))
+        assertEquals("6小时前", timeAgo(now - 6 * hour, now))
+        assertEquals("13天前", timeAgo(now - 13 * 24 * hour, now))
+        assertEquals("2周前", timeAgo(now - 14 * 24 * hour, now))
+        assertEquals("1个月前", timeAgo(now - 31 * 24 * hour, now))
+        assertEquals("2年前", timeAgo(now - 800 * 24 * hour, now))
+        assertEquals("昨天", uploadedText(null, "昨天", now))
     }
 
     @Test fun latestIsNewestFirstWithoutDuplicates() {

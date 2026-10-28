@@ -61,6 +61,7 @@ data class VideoDetail(
     val uploaded: String?,
     val isLive: Boolean,
     val related: List<VideoSummary>,
+    val uploadedAtMs: Long? = null,
 )
 
 /** One page of a list. [next] is the opaque position of the following page, null at the end. */

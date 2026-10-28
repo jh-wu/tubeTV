@@ -74,7 +74,7 @@ import com.tubetv.app.ui.common.ChoiceDialog
 import com.tubetv.app.ui.common.GridState
 import com.tubetv.app.ui.common.Message
 import com.tubetv.app.ui.common.VideoCard
-import com.tubetv.app.ui.common.VideoCardWidth
+import com.tubetv.app.ui.common.VideoGridColumns
 import com.tubetv.app.ui.common.VideoGrid
 import com.tubetv.app.ui.common.formatTime
 
@@ -242,7 +242,7 @@ private fun ContinueWatching(vm: HomeViewModel, onResume: (WatchRecord) -> Unit)
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(VideoCardWidth - 4.dp),
+        columns = GridCells.Fixed(VideoGridColumns),
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -252,7 +252,7 @@ private fun ContinueWatching(vm: HomeViewModel, onResume: (WatchRecord) -> Unit)
                 r.toSummary(),
                 onClick = { onResume(r) },
                 progress = r.progress,
-                subtitle = listOfNotNull(r.channelName, "看到 ${formatTime(r.positionMs)}").joinToString(" · "),
+                subtitle = "看到 ${formatTime(r.positionMs)}",
             )
         }
     }

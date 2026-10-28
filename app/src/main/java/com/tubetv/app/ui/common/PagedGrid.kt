@@ -90,7 +90,7 @@ fun VideoGrid(
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(VideoCardWidth - 4.dp),
+        columns = GridCells.Fixed(VideoGridColumns),
         modifier = modifier,
         state = gridState,
         contentPadding = PaddingValues(horizontal = 48.dp, vertical = 24.dp),

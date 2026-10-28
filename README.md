@@ -21,6 +21,7 @@ favourite channels in place of iyfTV's fixed categories.
   The person icon at the bottom left of the control bar opens the video's channel (after asking).
 - When the network drops (Wi-Fi lost, say), the app shows 网络连接不稳定，正在重新连接… and keeps
   trying; lists load and the video carries on where it stopped once the connection is back.
+- Video grids show three big cards across; under each title, the channel, then when it came out (3天前) and its views.
 - **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first,
   24 at a time (more load as you scroll down).
 - **收藏频道**: favourite channels; a red 新 marks ones that uploaded in the past week since you
