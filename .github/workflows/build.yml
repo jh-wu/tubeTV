@@ -55,10 +55,12 @@ jobs:
           status=0; TUBETV_LIVE=1 ./gradlew testDebugUnitTest --tests '*LiveYouTubeTest*' -q || status=$?
           # Print what the test printed, then the failure with its stack trace.
           python3 - <<'PY'
-          import glob, re
+          import glob
+          import xml.etree.ElementTree as ET
           for f in glob.glob('app/build/test-results/testDebugUnitTest/*LiveYouTube*.xml'):
-              xml = open(f).read()
-              for m in re.findall(r'(?s)<system-out><!\[CDATA\[(.*?)\]\]>', xml): print(m)
-              for m in re.findall(r'(?s)<failure[^>]*>(.*?)</failure>', xml): print(m[:6000])
+              root = ET.parse(f).getroot()
+              for e in root.iter('system-out'): print(e.text or '')
+              for e in root.iter('system-err'): print(e.text or '')
+              for e in root.iter('failure'): print((e.text or '')[:6000])
           PY
           exit $status
