@@ -24,4 +24,4 @@ fun formatTime(ms: Long): String {
 
 /** "频道名 · 12万次观看 · 3天前", leaving out whatever is unknown. */
 fun videoSubtitle(channel: String?, views: Long, uploaded: String?, showChannel: Boolean = true): String =
-    listOfNotNull(channel?.takeIf { showChannel }, formatViews(views), uploaded).joinToString(" · ")
+    listOfNotNull(channel?.takeIf { showChannel }, uploaded, formatViews(views)).joinToString(" · ")

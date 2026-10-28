@@ -136,8 +136,8 @@ private fun VideoContent(
                     Text(d.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     val meta = listOfNotNull(
                         if (d.isLive) "直播中" else d.durationSec.takeIf { it > 0 }?.let { formatTime(it * 1000) },
-                        formatViews(d.viewCount),
                         d.uploaded,
+                        formatViews(d.viewCount),
                     ).joinToString(" · ")
                     if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {

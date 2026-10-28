@@ -26,7 +26,7 @@ class FormatTest {
     }
 
     @Test fun subtitleLeavesOutUnknowns() {
-        assertEquals("频道 · 1.5万次观看 · 3天前", videoSubtitle("频道", 15_000, "3天前"))
+        assertEquals("频道 · 3天前 · 1.5万次观看", videoSubtitle("频道", 15_000, "3天前"))
         assertEquals("3天前", videoSubtitle("频道", -1, "3天前", showChannel = false))
     }
 
