@@ -14,9 +14,14 @@ data class CachedFeed(val savedAtMs: Long, val videos: List<VideoSummary>, val p
 
 /** The 首页 tabs' last lists, kept on disk so the app opens with them instead of a loading screen. */
 class FeedCache(dir: File) {
-    private val file = File(dir, "feeds.json")
+    /** v2: lists saved before titles were asked for in the chosen language (they came in English). */
+    private val file = File(dir, FILE_NAME)
     private val json = Json { ignoreUnknownKeys = true }
     private val lock = Mutex()
+
+    companion object {
+        const val FILE_NAME = "feeds_v2.json"
+    }
 
     suspend fun load(): Map<String, CachedFeed> = withContext(Dispatchers.IO) {
         lock.withLock {

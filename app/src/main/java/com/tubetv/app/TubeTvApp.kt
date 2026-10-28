@@ -65,6 +65,8 @@ class TubeTvApp : Application() {
             .build()
         playerHttp = http.newBuilder().addInterceptor(StreamHeaders).build()
         connection = Connection(this)
+        // Lists saved by older builds have English titles (see FeedCache.FILE_NAME).
+        File(filesDir, "feeds.json").delete()
         source = RetryingSource(NewPipeSource(http, titleLanguage?.let(Locale::forLanguageTag) ?: Locale.getDefault()), connection)
         val db = AppDatabase.create(this)
         history = db.watchHistory()
@@ -82,7 +84,7 @@ class TubeTvApp : Application() {
     fun setTitleLanguage(tag: String?) {
         settings.edit().putString(KEY_TITLE_LANGUAGE, tag).apply()
         source.setLanguage(tag?.let(Locale::forLanguageTag) ?: Locale.getDefault())
-        File(filesDir, "feeds.json").delete()
+        File(filesDir, com.tubetv.app.data.library.FeedCache.FILE_NAME).delete()
     }
 
     private companion object {

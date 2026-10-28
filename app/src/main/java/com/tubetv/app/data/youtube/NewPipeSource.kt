@@ -54,14 +54,9 @@ private class LocalizedYouTube : YoutubeService(0) {
 fun youTubeLocalization(locale: Locale): Localization {
     // Localization.fromLocale would make "en" into "en-", which YouTube rejects as an invalid argument.
     if (locale.language != "zh") return Localization(locale.language, locale.country.ifEmpty { null })
-    val country = when {
-        locale.country in setOf("TW", "HK") -> locale.country
-        locale.country == "MO" -> "HK"
-        locale.country.isEmpty() && locale.script == "Hant" -> "TW"
-        locale.country.isEmpty() -> "CN"
-        locale.script == "Hant" -> "TW"
-        else -> "CN"
-    }
+    // Traditional Chinese is asked as zh-TW even in Hong Kong: NewPipe can't read zh-HK's dates ("13 日前").
+    val traditional = locale.script == "Hant" || (locale.script.isEmpty() && locale.country in setOf("TW", "HK", "MO"))
+    val country = if (traditional) "TW" else "CN"
     return Localization("zh", country)
 }
 
