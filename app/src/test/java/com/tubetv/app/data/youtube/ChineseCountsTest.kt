@@ -9,6 +9,7 @@ class ChineseCountsTest {
         assertEquals("15100000位訂閱者", ChineseCounts.expand("1510萬位訂閱者"))
         assertEquals("12000 次觀看", ChineseCounts.expand("1.2萬 次觀看"))
         assertEquals("150000000次播放", ChineseCounts.expand("1.5亿次播放"))
+        assertEquals("觀看次數：52000次", ChineseCounts.expand("觀看次數：5.2萬次"))
         assertEquals("""{"simpleText":"23000人正在观看"}""", ChineseCounts.expand("""{"simpleText":"2.3万人正在观看"}"""))
     }
 

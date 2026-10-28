@@ -16,7 +16,17 @@ import java.util.Locale
  */
 class LiveYouTubeTest {
 
-    private val http = OkHttpClient()
+    /** While set, prints the bits of each response around Chinese count units, to see YouTube's wording. */
+    @Volatile private var peekCounts = false
+    private val http = OkHttpClient.Builder().addInterceptor { chain ->
+        val response = chain.proceed(chain.request())
+        if (peekCounts) {
+            val body = response.peekBody(4_000_000).string()
+            Regex(""".{0,24}[万萬億亿].{0,12}""").findAll(body).map { it.value }.distinct().take(8)
+                .forEach { println("count text: $it") }
+        }
+        response
+    }.build()
     private val source = NewPipeSource(http, Locale.SIMPLIFIED_CHINESE)
 
     /** Prints one channel's titles from each kind of request, in several languages, to compare them. */
@@ -32,8 +42,11 @@ class LiveYouTubeTest {
         val ch = found.first()
         val rss = source.latestVideos(ch.url).take(4)
         println("lang rss: ${rss.map { it.title }}")
-        for (tag in listOf("zh-CN", "zh-TW", "en")) {
+        for (tag in listOf("zh-CN", "zh-TW", "zh-HK", "en")) {
             source.setLanguage(Locale.forLanguageTag(tag))
+            peekCounts = tag == "zh-TW" || tag == "zh-HK"
+            println("lang $tag peek tab: ${source.channelVideos(ch.url, null).items.size}")
+            peekCounts = false
             println("lang $tag tab: ${source.channelVideos(ch.url, null).items.take(4).map { "${it.title} [${it.uploaded} ${it.uploadedAtMs} views=${it.viewCount} ${it.durationSec}s]" }}")
             println("lang $tag channel: ${runCatching { source.channel(ch.url).let { "${it.name} subs=${it.subscriberCount}" } }}")
             println("lang $tag kiosk: ${runCatching { source.kiosk(com.tubetv.app.data.Kiosks.home.first().first).take(2).map { "${it.title} [${it.uploaded} ${it.uploadedAtMs} views=${it.viewCount}]" } }}")
