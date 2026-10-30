@@ -44,6 +44,18 @@ class LiveYouTubeTest {
         source.setLanguage(Locale.SIMPLIFIED_CHINESE)
     }
 
+    @Test fun comments() = runBlocking {
+        assumeTrue(System.getenv("TUBETV_LIVE") == "1")
+        val url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        for (tag in listOf("en", "zh-CN")) {
+            source.setLanguage(Locale.forLanguageTag(tag))
+            val info = runCatching { org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(url) }
+            println("comments $tag: ${info.map { "items=${it.relatedItems.size} disabled=${it.isCommentsDisabled} count=${it.commentsCount} next=${it.nextPage != null} errors=${it.errors.map { e -> e.toString().take(300) }}" }}")
+            println("comments $tag ours: ${runCatching { source.comments(url, null).items.take(2).map { "${it.author}: ${it.text.take(30)} [${it.likes} ${it.uploaded} r=${it.replies}]" } }}")
+        }
+        source.setLanguage(Locale.SIMPLIFIED_CHINESE)
+    }
+
     @Test fun searchChannelVideosAndPlay() = runBlocking {
         assumeTrue(System.getenv("TUBETV_LIVE") == "1")
 
