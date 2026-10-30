@@ -40,6 +40,7 @@ import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerView
 import com.tubetv.app.MainActivity
 import com.tubetv.app.R
+import com.tubetv.app.ui.comments.CommentsActivity
 import com.tubetv.app.TubeTvApp
 import com.tubetv.app.data.library.WatchRecord
 import com.tubetv.app.data.model.PlaySource
@@ -454,9 +455,13 @@ class PlayerActivity : ComponentActivity() {
     /** Asks before leaving the video for its channel's page. */
     private fun confirmChannel(url: String, name: String?) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("打开频道")
-            .setMessage("停止播放，打开${name?.let { "「$it」" } ?: "这个视频"}的频道页？")
+            .setTitle(name ?: "这个视频")
+            .setMessage("打开频道页会停止播放；看完评论按返回键继续播放。")
             .setPositiveButton("打开频道") { _, _ -> openChannel(url) }
+            // Over the player, so Back comes straight back to the video.
+            .setNeutralButton("查看评论") { _, _ ->
+                startActivity(CommentsActivity.intent(this, videoUrl, playback?.title))
+            }
             .setNegativeButton("继续播放", null)
             .show()
             .getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()

@@ -18,7 +18,8 @@ favourite channels in place of iyfTV's fixed categories.
 - While playing, the gear in the control bar picks subtitles (remembered for the next video),
   the quality (画质), the audio language on dubbed videos, and the speed. Videos start in their original audio, and
   subtitles are outlined white text with no background.
-  The person icon at the bottom left of the control bar opens the video's channel (after asking).
+  The person icon at the bottom left of the control bar opens the video's channel or its 评论 (comments;
+  Back returns to the video). The video page has a 评论 button too.
 - When the network drops (Wi-Fi lost, say), the app shows 网络连接不稳定，正在重新连接… and keeps
   trying; lists load and the video carries on where it stopped once the connection is back.
 - Video grids show three big cards across; under each title, the channel, then when it came out (3天前) and its views.

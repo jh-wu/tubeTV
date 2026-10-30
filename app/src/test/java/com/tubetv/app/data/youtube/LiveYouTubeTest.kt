@@ -73,6 +73,9 @@ class LiveYouTubeTest {
         assertTrue("no home rows", com.tubetv.app.data.Kiosks.home.any { (id, _) -> runCatching { source.kiosk(id) }.getOrNull().orEmpty().isNotEmpty() })
 
         val url = videos.items.first { !it.isLive }.url
+        val comments = runCatching { source.comments(url, null) }
+        println("comments: ${comments.map { p -> "${p.items.size} more=${p.hasMore} " + p.items.take(3).map { "${it.author}: ${it.text.take(40)} [${it.likes} ${it.uploaded} r=${it.replies}]" } }}")
+        comments.getOrNull()?.next?.let { println("comments page 2: ${runCatching { source.comments(url, it).items.size }}") }
         val detail = try {
             source.video(url)
         } catch (e: Exception) {

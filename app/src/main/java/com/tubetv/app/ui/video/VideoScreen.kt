@@ -80,13 +80,14 @@ fun VideoScreen(
     onOpenChannel: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
     onOpenInYouTube: () -> Unit,
+    onOpenComments: (title: String) -> Unit,
 ) {
     val state by vm.detail.collectAsState()
     val record by vm.record.collectAsState()
     when (val s = state) {
         is Load.Loading -> Message("加载中…")
         is Load.Failed -> LoadFailed(s.message, vm::load, onOpenInYouTube)
-        is Load.Ready -> VideoContent(s.value, record, onPlay, onOpenChannel, onOpenVideo)
+        is Load.Ready -> VideoContent(s.value, record, onPlay, onOpenChannel, onOpenVideo, onOpenComments)
     }
 }
 
@@ -115,6 +116,7 @@ private fun VideoContent(
     onPlay: (Boolean) -> Unit,
     onOpenChannel: (String) -> Unit,
     onOpenVideo: (String) -> Unit,
+    onOpenComments: (title: String) -> Unit,
 ) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(d.url) { runCatching { playFocus.requestFocus() } }
@@ -156,6 +158,7 @@ private fun VideoContent(
                                 Text(c.name, maxLines = 1, modifier = Modifier.padding(start = 8.dp))
                             }
                         }
+                        OutlinedButton(onClick = { onOpenComments(d.title) }) { Text("评论") }
                     }
                     d.description?.let {
                         Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 6, overflow = TextOverflow.Ellipsis)

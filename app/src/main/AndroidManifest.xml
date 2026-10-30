@@ -43,6 +43,11 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
+        <activity
+            android:name=".ui.comments.CommentsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
         <!-- Hands downloaded updates to the system installer. -->
         <provider
             android:name="androidx.core.content.FileProvider"

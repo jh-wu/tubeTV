@@ -46,4 +46,9 @@ class ConversionsTest {
         assertEquals(listOf("https://s/ja/false/vtt", "https://s/en/true/vtt"), options.map { it.url })
         assertTrue(options[1].label.endsWith("（自动生成）"))
     }
+
+    @Test fun commentTextWithoutMarkup() {
+        assertEquals("好看！\n第二行 <3 & more", Conversions.plainText("好看！<br>第二行 <a href=\"x\">&lt;3</a> &amp; more", html = true))
+        assertEquals("plain", Conversions.plainText(" plain ", html = false))
+    }
 }

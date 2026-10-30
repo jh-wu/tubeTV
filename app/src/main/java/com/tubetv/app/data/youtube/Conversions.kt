@@ -15,6 +15,9 @@ import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem
+import org.schabi.newpipe.extractor.stream.Description
+import com.tubetv.app.data.model.Comment
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.util.Locale
 import kotlin.math.abs
@@ -45,6 +48,27 @@ internal object Conversions {
         uploadedAtMs = runCatching { uploadDate?.instant?.toEpochMilli() }.getOrNull(),
         isLive = streamType.isLive(),
     )
+
+    fun CommentsInfoItem.toComment() = Comment(
+        key = commentId?.ifBlank { null } ?: "${uploaderName}/${commentText?.content.hashCode()}",
+        author = uploaderName.orEmpty(),
+        avatarUrl = uploaderAvatars.pick(88)?.let(::absolute),
+        text = commentText?.let { plainText(it.content.orEmpty(), it.type == Description.HTML) }.orEmpty(),
+        likes = textualLikeCount?.ifBlank { null } ?: likeCount.takeIf { it > 0 }?.toString(),
+        uploaded = textualUploadDate?.ifBlank { null },
+        uploadedAtMs = runCatching { uploadDate?.instant?.toEpochMilli() }.getOrNull(),
+        replies = replyCount.coerceAtLeast(0),
+        pinned = isPinned,
+        hearted = isHeartedByUploader,
+    )
+
+    /** A comment's text without its markup: line breaks kept, links and formatting dropped. */
+    fun plainText(content: String, html: Boolean): String {
+        if (!html) return content.trim()
+        return content.replace(Regex("(?i)<br\\s*/?>"), "\n").replace(Regex("<[^>]+>"), "")
+            .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'")
+            .replace("&nbsp;", " ").replace("&amp;", "&").trim()
+    }
 
     fun ChannelInfoItem.toSummary() = ChannelSummary(
         url = url,

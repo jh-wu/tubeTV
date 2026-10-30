@@ -7,6 +7,22 @@ interface Keyed {
     val key: String
 }
 
+/** One comment under a video, as the 评论 page shows it. */
+data class Comment(
+    override val key: String,
+    val author: String,
+    val avatarUrl: String?,
+    val text: String,
+    /** YouTube's own wording of the like count ("1.2万"), so no number has to be read back. */
+    val likes: String?,
+    val uploaded: String?,
+    val uploadedAtMs: Long?,
+    val replies: Int,
+    val pinned: Boolean,
+    /** The uploader gave it a heart. */
+    val hearted: Boolean,
+) : Keyed
+
 /** A video as it appears in a row, grid or search result. */
 @Serializable
 data class VideoSummary(

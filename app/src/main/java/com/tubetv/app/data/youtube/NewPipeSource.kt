@@ -11,7 +11,11 @@ import com.tubetv.app.data.model.VideoSummary
 import com.tubetv.app.data.youtube.Conversions.absolute
 import com.tubetv.app.data.youtube.Conversions.isLive
 import com.tubetv.app.data.youtube.Conversions.pick
+import com.tubetv.app.data.youtube.Conversions.toComment
 import com.tubetv.app.data.youtube.Conversions.toSummary
+import org.schabi.newpipe.extractor.comments.CommentsInfo
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem
+import com.tubetv.app.data.model.Comment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +118,17 @@ class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) 
             subscriberCount = info.subscriberCount,
             description = info.description?.trim()?.ifBlank { null },
         )
+    }
+
+    override suspend fun comments(url: String, page: Any?): Page<Comment> = io {
+        if (page == null) {
+            val info = CommentsInfo.getInfo(service, url)
+            if (info.isCommentsDisabled) return@io Page(emptyList(), null)
+            Page(info.relatedItems.filterIsInstance<CommentsInfoItem>().map { it.toComment() }, info.nextPage.validOrNull())
+        } else {
+            val more = CommentsInfo.getMoreItems(service, url, page as NpPage)
+            Page(more.items.filterIsInstance<CommentsInfoItem>().map { it.toComment() }, more.nextPage.validOrNull())
+        }
     }
 
     override suspend fun channelVideos(url: String, page: Any?): Page<VideoSummary> = io {

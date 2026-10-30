@@ -83,6 +83,7 @@ class RetryingSource(private val inner: YouTubeSource, private val connection: C
     override suspend fun searchVideos(query: String, page: Any?) = connection.retrying { inner.searchVideos(query, page) }
     override suspend fun searchChannels(query: String, page: Any?) = connection.retrying { inner.searchChannels(query, page) }
     override suspend fun channel(url: String) = connection.retrying { inner.channel(url) }
+    override suspend fun comments(url: String, page: Any?) = connection.retrying { inner.comments(url, page) }
     override suspend fun channelVideos(url: String, page: Any?) = connection.retrying { inner.channelVideos(url, page) }
     override suspend fun latestVideos(channelUrl: String) = connection.retrying { inner.latestVideos(channelUrl) }
     override suspend fun kiosk(id: String) = connection.retrying { inner.kiosk(id) }

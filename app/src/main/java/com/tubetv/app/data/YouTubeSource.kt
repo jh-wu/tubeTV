@@ -1,6 +1,7 @@
 package com.tubetv.app.data
 
 import com.tubetv.app.data.model.ChannelDetail
+import com.tubetv.app.data.model.Comment
 import com.tubetv.app.data.model.ChannelSummary
 import com.tubetv.app.data.model.Page
 import com.tubetv.app.data.model.Playback
@@ -27,6 +28,9 @@ interface YouTubeSource {
     suspend fun searchVideos(query: String, page: Any?): Page<VideoSummary>
     suspend fun searchChannels(query: String, page: Any?): Page<ChannelSummary>
     suspend fun channel(url: String): ChannelDetail
+
+    /** A video's comments, a page at a time (an empty first page when they are turned off). */
+    suspend fun comments(url: String, page: Any?): Page<Comment>
     suspend fun channelVideos(url: String, page: Any?): Page<VideoSummary>
 
     /** A channel's most recent uploads, newest first. */

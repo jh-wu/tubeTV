@@ -23,7 +23,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
+import com.tubetv.app.ui.comments.CommentsScreen
+import com.tubetv.app.ui.comments.CommentsViewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.tv.material3.MaterialTheme
@@ -117,7 +121,15 @@ class MainActivity : ComponentActivity() {
                                     onOpenChannel = openChannel,
                                     onOpenVideo = openVideo,
                                     onOpenInYouTube = { openInYouTube(url) },
+                                    onOpenComments = { title -> nav.navigate("comments/${Uri.encode(url)}?title=${Uri.encode(title)}") },
                                 )
+                            }
+                            composable(
+                                "comments/{url}?title={title}",
+                                arguments = listOf(navArgument("title") { type = NavType.StringType; nullable = true }),
+                            ) { entry ->
+                                val url = entry.arguments?.getString("url").orEmpty()
+                                CommentsScreen(viewModel { CommentsViewModel(app.source, url) }, entry.arguments?.getString("title"))
                             }
                         }
                         // While requests wait for a dropped network, say so; they carry on by themselves.
