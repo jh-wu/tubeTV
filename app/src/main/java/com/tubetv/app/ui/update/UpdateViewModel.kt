@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.update
 
+import com.tubetv.app.Strings
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -94,7 +95,7 @@ class UpdateViewModel(private val checker: UpdateChecker, private val app: Appli
                     _state.value = UpdateState.Downloading(release, p)
                 }
                 if (ApkInstaller.isValid(app, file)) UpdateState.Ready(release, file)
-                else UpdateState.Failed(release, "下载的文件不是有效的安装包")
+                else UpdateState.Failed(release, Strings.invalidPackage)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -108,7 +109,7 @@ class UpdateViewModel(private val checker: UpdateChecker, private val app: Appli
         _state.value = when (ApkInstaller.install(context, ready.file)) {
             ApkInstaller.Result.Started -> ready.copy(attempted = true, needsPermission = false)
             ApkInstaller.Result.NeedsPermission -> ready.copy(attempted = true, needsPermission = true)
-            ApkInstaller.Result.Failed -> UpdateState.Failed(ready.release, "无法打开系统安装程序")
+            ApkInstaller.Result.Failed -> UpdateState.Failed(ready.release, Strings.noInstaller)
         }
     }
 

@@ -8,10 +8,41 @@ import com.tubetv.app.ui.common.uploadedText
 import com.tubetv.app.ui.common.videoMeta
 import com.tubetv.app.ui.home.interleave
 import com.tubetv.app.ui.home.mergeLatest
+import com.tubetv.app.Strings
+import com.tubetv.app.UiLanguage
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FormatTest {
+
+    @After fun backToDefault() {
+        Strings.language = UiLanguage.SimplifiedChinese
+    }
+
+    @Test fun countsAndTimesInEachLanguage() {
+        val now = 1_700_000_000_000L
+        val threeDays = now - 3 * 24 * 3_600_000L
+        Strings.language = UiLanguage.English
+        assertEquals("1.2K", formatCount(1_234))
+        assertEquals("3.4M", formatCount(3_400_000))
+        assertEquals("1 day ago", timeAgo(now - 24 * 3_600_000L, now))
+        assertEquals("3 days ago · 12K views", videoMeta(12_000, timeAgo(threeDays, now)))
+        Strings.language = UiLanguage.TraditionalChinese
+        assertEquals("3天前 · 1.2萬次觀看", videoMeta(12_000, timeAgo(threeDays, now)))
+        Strings.language = UiLanguage.Japanese
+        assertEquals("3日前 · 1.2万回視聴", videoMeta(12_000, timeAgo(threeDays, now)))
+        Strings.language = UiLanguage.Korean
+        assertEquals("3일 전 · 조회수 1.2만회", videoMeta(12_000, timeAgo(threeDays, now)))
+    }
+
+    @Test fun appLanguageFromLocale() {
+        assertEquals(UiLanguage.TraditionalChinese, UiLanguage.of(java.util.Locale.forLanguageTag("zh-HK")))
+        assertEquals(UiLanguage.TraditionalChinese, UiLanguage.of(java.util.Locale.forLanguageTag("zh-Hant-CN")))
+        assertEquals(UiLanguage.SimplifiedChinese, UiLanguage.of(java.util.Locale.forLanguageTag("zh-Hans-HK")))
+        assertEquals(UiLanguage.SimplifiedChinese, UiLanguage.of(java.util.Locale.forLanguageTag("zh")))
+        assertEquals(UiLanguage.English, UiLanguage.of(java.util.Locale.forLanguageTag("fr-FR")))
+    }
 
     @Test fun countsInChinese() {
         assertEquals("9999", formatCount(9_999))

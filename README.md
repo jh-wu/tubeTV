@@ -4,7 +4,9 @@ tubeTV is a YouTube app for Google TV and Android TV, made to be used with the T
 You don't need a Google account: open the app and start watching. You can keep a list of
 favourite channels, see their newest videos in one place, and pick up videos where you left off.
 
-The app's menus are in Chinese.
+The app's menus come in 简体中文, 繁體中文, English, 日本語 and 한국어. They follow the TV's
+language unless you pick one in **设置** (see [Settings](#settings)). This guide uses the
+Simplified Chinese names.
 
 ## Install
 
@@ -80,8 +82,9 @@ Where you stopped is saved as you watch, so the video shows up in 继续观看.
 Open **设置** at the bottom of the side bar.
 
 - **检查更新** checks for a new version.
-- **标题语言** picks the language of video titles: 跟随系统 (the TV's language), 简体中文,
-  繁體中文, English, 日本語 or 한국어. A title only changes when the uploader has translated it.
+- **语言** picks the language of the app's menus and of video titles: 跟随系统 (the TV's language),
+  简体中文, 繁體中文, English, 日本語 or 한국어. The app restarts in the new language. A title only
+  changes when the uploader has translated it.
   最新视频 always shows a video's original title.
 
 ## When something goes wrong

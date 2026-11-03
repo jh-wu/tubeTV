@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.video
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -85,7 +86,7 @@ fun VideoScreen(
     val state by vm.detail.collectAsState()
     val record by vm.record.collectAsState()
     when (val s = state) {
-        is Load.Loading -> Message("加载中…")
+        is Load.Loading -> Message(Strings.loading)
         is Load.Failed -> LoadFailed(s.message, vm::load, onOpenInYouTube)
         is Load.Ready -> VideoContent(s.value, record, onPlay, onOpenChannel, onOpenVideo, onOpenComments)
     }
@@ -101,10 +102,10 @@ private fun LoadFailed(message: String, onRetry: () -> Unit, onOpenInYouTube: ()
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("加载失败：$message", style = MaterialTheme.typography.bodyLarge)
+        Text(Strings.loadFailed(message), style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onRetry, modifier = Modifier.focusRequester(focus)) { Text("重试") }
-            OutlinedButton(onClick = onOpenInYouTube) { Text("用 YouTube 应用打开") }
+            Button(onClick = onRetry, modifier = Modifier.focusRequester(focus)) { Text(Strings.retry) }
+            OutlinedButton(onClick = onOpenInYouTube) { Text(Strings.openInYouTube) }
         }
     }
 }
@@ -138,7 +139,7 @@ private fun VideoContent(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     Text(d.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     val meta = listOfNotNull(
-                        if (d.isLive) "直播中" else d.durationSec.takeIf { it > 0 }?.let { formatTime(it * 1000) },
+                        if (d.isLive) Strings.liveNow else d.durationSec.takeIf { it > 0 }?.let { formatTime(it * 1000) },
                         uploadedText(d.uploadedAtMs, d.uploaded),
                         formatViews(d.viewCount),
                     ).joinToString(" · ")
@@ -146,11 +147,11 @@ private fun VideoContent(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
                         if (resumable != null) {
                             Button(onClick = { onPlay(false) }, modifier = Modifier.focusRequester(playFocus)) {
-                                Text("继续播放 ${formatTime(resumable.positionMs)}")
+                                Text(Strings.resumeAt(formatTime(resumable.positionMs)))
                             }
-                            OutlinedButton(onClick = { onPlay(true) }) { Text("从头播放") }
+                            OutlinedButton(onClick = { onPlay(true) }) { Text(Strings.playFromStart) }
                         } else {
-                            Button(onClick = { onPlay(true) }, modifier = Modifier.focusRequester(playFocus)) { Text("播放") }
+                            Button(onClick = { onPlay(true) }, modifier = Modifier.focusRequester(playFocus)) { Text(Strings.play) }
                         }
                         d.channel?.let { c ->
                             OutlinedButton(onClick = { onOpenChannel(c.url) }) {
@@ -158,7 +159,7 @@ private fun VideoContent(
                                 Text(c.name, maxLines = 1, modifier = Modifier.padding(start = 8.dp))
                             }
                         }
-                        OutlinedButton(onClick = { onOpenComments(d.title) }) { Text("评论") }
+                        OutlinedButton(onClick = { onOpenComments(d.title) }) { Text(Strings.comments) }
                     }
                     d.description?.let {
                         Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 6, overflow = TextOverflow.Ellipsis)
@@ -167,7 +168,7 @@ private fun VideoContent(
             }
         }
         if (d.related.isNotEmpty()) {
-            item { VideoRow("相关视频", d.related, onOpen = { onOpenVideo(it.url) }) }
+            item { VideoRow(Strings.related, d.related, onOpen = { onOpenVideo(it.url) }) }
         }
     }
 }

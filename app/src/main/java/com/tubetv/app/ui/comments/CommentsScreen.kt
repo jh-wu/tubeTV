@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.comments
 
+import com.tubetv.app.Strings
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -51,9 +52,9 @@ fun CommentsScreen(vm: CommentsViewModel, title: String?) {
     val state by vm.state.collectAsState()
     if (state.items.isEmpty()) {
         when {
-            state.error != null -> Message("加载失败：${state.error}", onRetry = vm::loadMore)
-            state.loading || state.hasMore -> Message("加载中…")
-            else -> Message("这个视频没有评论")
+            state.error != null -> Message(Strings.loadFailed(state.error), onRetry = vm::loadMore)
+            state.loading || state.hasMore -> Message(Strings.loading)
+            else -> Message(Strings.noComments)
         }
         return
     }
@@ -64,7 +65,7 @@ fun CommentsScreen(vm: CommentsViewModel, title: String?) {
     ) {
         item {
             Text(
-                listOfNotNull("评论", title?.ifBlank { null }).joinToString(" · "),
+                listOfNotNull(Strings.comments, title?.ifBlank { null }).joinToString(" · "),
                 style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -75,9 +76,9 @@ fun CommentsScreen(vm: CommentsViewModel, title: String?) {
             if (index >= state.items.size - 5) LaunchedEffect(state.items.size) { vm.loadMore() }
             CommentItem(c, if (index == 0) Modifier.focusRequester(first) else Modifier)
         }
-        if (state.loading) item { Text("加载中…", modifier = Modifier.padding(16.dp)) }
+        if (state.loading) item { Text(Strings.loading, modifier = Modifier.padding(16.dp)) }
         if (state.error != null) {
-            item { Message("加载失败：${state.error}", onRetry = vm::loadMore, modifier = Modifier.fillMaxWidth()) }
+            item { Message(Strings.loadFailed(state.error), onRetry = vm::loadMore, modifier = Modifier.fillMaxWidth()) }
         }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
@@ -103,16 +104,16 @@ private fun CommentItem(c: Comment, modifier: Modifier = Modifier) {
             Avatar(c.avatarUrl, c.author, Modifier.size(48.dp))
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val head = listOfNotNull(
-                    "置顶".takeIf { c.pinned },
+                    Strings.pinned.takeIf { c.pinned },
                     c.author.ifBlank { null },
                     uploadedText(c.uploadedAtMs, c.uploaded),
                 ).joinToString(" · ")
                 Text(head, style = MaterialTheme.typography.bodySmall, color = dim, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(c.text, style = MaterialTheme.typography.bodyLarge)
                 val foot = listOfNotNull(
-                    c.likes?.let { "赞 $it" },
-                    "${c.replies} 条回复".takeIf { c.replies > 0 },
-                    "作者点了赞".takeIf { c.hearted },
+                    c.likes?.let { Strings.likes(it) },
+                    Strings.replies(c.replies).takeIf { c.replies > 0 },
+                    Strings.heartedByCreator.takeIf { c.hearted },
                 ).joinToString("    ")
                 if (foot.isNotEmpty()) Text(foot, style = MaterialTheme.typography.bodySmall, color = dim)
             }

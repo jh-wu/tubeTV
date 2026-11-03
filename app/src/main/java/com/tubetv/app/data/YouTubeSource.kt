@@ -15,7 +15,10 @@ object Kiosks {
     const val GAMING = "trending_gaming"
     const val MOVIES = "trending_movies_and_shows"
     const val PODCASTS = "trending_podcasts_episodes"
-    val home = listOf(LIVE to "直播", MUSIC to "音乐", GAMING to "游戏", MOVIES to "电影", PODCASTS to "播客")
+    val home: List<Pair<String, String>> get() = listOf(
+        LIVE to com.tubetv.app.Strings.live, MUSIC to com.tubetv.app.Strings.music, GAMING to com.tubetv.app.Strings.gaming,
+        MOVIES to com.tubetv.app.Strings.movies, PODCASTS to com.tubetv.app.Strings.podcasts,
+    )
     fun title(id: String) = home.first { it.first == id }.second
 }
 

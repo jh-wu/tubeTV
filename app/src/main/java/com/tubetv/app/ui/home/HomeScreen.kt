@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.home
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.offset
@@ -142,8 +143,8 @@ fun HomeScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-            RailItem("搜索", Icons.Default.Search, selected = false, canFocus = railOpen, onClick = onSearch)
-            RailItem("设置", Icons.Default.Settings, selected = false, canFocus = railOpen, onClick = onSettings)
+            RailItem(Strings.search, Icons.Default.Search, selected = false, canFocus = railOpen, onClick = onSearch)
+            RailItem(Strings.settings, Icons.Default.Settings, selected = false, canFocus = railOpen, onClick = onSettings)
         }
     }
     // Opening the bar moves focus into it, once its items can take focus.
@@ -223,7 +224,7 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
             onOpen = { onOpenVideo(it.url) },
             // Only a failed load is worth asking again; the lists have one page.
             onLoadMore = { if (feed.error != null) reload() },
-            emptyText = "YouTube 没有返回这个列表",
+            emptyText = Strings.noList,
             // Down past the last row of videos goes back up to the open tab, where OK reloads.
             modifier = Modifier.onPreviewKeyEvent { e ->
                 if (e.key != Key.DirectionDown || e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -238,7 +239,7 @@ private fun HomeFeeds(vm: HomeViewModel, onOpenVideo: (String) -> Unit, tabFocus
 private fun ContinueWatching(vm: HomeViewModel, onResume: (WatchRecord) -> Unit) {
     val recent = vm.continueWatching.collectAsState().value.filterNot { it.isFinished }
     if (recent.isEmpty()) {
-        Message("还没有看到一半的视频")
+        Message(Strings.nothingHalfWatched)
         return
     }
     LazyVerticalGrid(
@@ -252,7 +253,7 @@ private fun ContinueWatching(vm: HomeViewModel, onResume: (WatchRecord) -> Unit)
                 r.toSummary(),
                 onClick = { onResume(r) },
                 progress = r.progress,
-                subtitle = "看到 ${formatTime(r.positionMs)}",
+                subtitle = Strings.watchedTo(formatTime(r.positionMs)),
             )
         }
     }
@@ -280,17 +281,17 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
         onOpen = { onOpenVideo(it.url) },
         // Near the bottom, 24 more; after a failed load with nothing shown, 重试 loads again.
         onLoadMore = { if (latest.videos.isEmpty() && latest.error != null) vm.refreshLatest() else vm.showMoreLatest() },
-        emptyText = "收藏的频道还没有视频",
+        emptyText = Strings.favouritesHaveNoVideos,
         header = {
             fullWidth {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(onClick = vm::refreshLatest) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(if (latest.loading) "正在刷新…" else "刷新", modifier = Modifier.padding(start = 8.dp))
+                        Text(if (latest.loading) Strings.refreshing else Strings.refresh, modifier = Modifier.padding(start = 8.dp))
                     }
                     val note = when {
-                        latest.failed.isNotEmpty() -> "这些频道没能加载：${latest.failed.joinToString("、")}"
-                        else -> "${favourites!!.size} 个收藏频道的最新视频"
+                        latest.failed.isNotEmpty() -> Strings.channelsFailed(latest.failed)
+                        else -> Strings.latestFrom(favourites!!.size)
                     }
                     Text(note, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -302,13 +303,13 @@ private fun Latest(vm: HomeViewModel, onOpenVideo: (String) -> Unit, onSearch: (
 @Composable
 private fun NoFavourites(onSearch: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text("还没有收藏的频道", style = MaterialTheme.typography.headlineSmall)
+        Text(Strings.noFavourites, style = MaterialTheme.typography.headlineSmall)
         Text(
-            "搜索一个频道并打开它，按“收藏”，它的最新视频就会出现在这里。",
+            Strings.noFavouritesHint,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
         )
-        AddChannelCard("搜索频道", onSearch)
+        AddChannelCard(Strings.searchChannels, onSearch)
     }
 }
 
@@ -319,8 +320,8 @@ private fun Favourites(vm: HomeViewModel, onOpenChannel: (String) -> Unit, onSea
     val lastVisited = vm.browsed.collectAsState().value.orEmpty().associate { it.url to it.lastVisitedAt }
     var removing by remember { mutableStateOf<ChannelSummary?>(null) }
     ChannelGrid {
-        fullWidth { Hint("标“新”的频道在你上次打开后有新视频 · 长按频道可取消收藏") }
-        item(key = "__add") { AddChannelCard("添加频道", onSearch) }
+        fullWidth { Hint(Strings.favouritesHint) }
+        item(key = "__add") { AddChannelCard(Strings.addChannel, onSearch) }
         items(favourites, key = { it.url }) { c ->
             ChannelCard(
                 c,
@@ -332,8 +333,8 @@ private fun Favourites(vm: HomeViewModel, onOpenChannel: (String) -> Unit, onSea
     }
     removing?.let { c ->
         ChoiceDialog(
-            title = "取消收藏“${c.name}”？",
-            choices = listOf(Choice("取消收藏") { vm.removeFavourite(c.url) }, Choice("返回") {}),
+            title = Strings.unfavouriteQuestion(c.name),
+            choices = listOf(Choice(Strings.unfavourite) { vm.removeFavourite(c.url) }, Choice(Strings.back) {}),
             onDismiss = { removing = null },
         )
     }
@@ -348,7 +349,7 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
     var editing by remember { mutableStateOf<BrowsedChannel?>(null) }
     var clearing by remember { mutableStateOf(false) }
     if (browsed.isEmpty()) {
-        Message("还没有浏览过频道。打开过的频道会记在这里。")
+        Message(Strings.noBrowsed)
         return
     }
     ChannelGrid {
@@ -356,9 +357,9 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { clearing = true }) {
                     Icon(AppIcons.ClearHistory, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Text("清除浏览记录", modifier = Modifier.padding(start = 8.dp))
+                    Text(Strings.clearBrowsed, modifier = Modifier.padding(start = 8.dp))
                 }
-                Hint("标“新”的频道在你上次打开后有新视频 · 长按频道可收藏或删除")
+                Hint(Strings.browsedHint)
             }
         }
         items(browsed, key = { it.url }) { b ->
@@ -366,7 +367,7 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
                 b.summary,
                 onClick = { onOpenChannel(b.url) },
                 onLongClick = { editing = b },
-                subtitle = "看过 ${b.visits} 次",
+                subtitle = Strings.visits(b.visits),
                 favourite = b.url in favouriteUrls,
                 hasNew = vm.hasNew(b.url, b.lastVisitedAt, newest),
             )
@@ -377,18 +378,18 @@ private fun Browsed(vm: HomeViewModel, onOpenChannel: (String) -> Unit) {
         ChoiceDialog(
             title = b.name,
             choices = listOf(
-                if (isFavourite) Choice("取消收藏") { vm.removeFavourite(b.url) } else Choice("收藏") { vm.addFavourite(b.summary) },
-                Choice("从记录中删除") { vm.forgetBrowsed(b.url) },
-                Choice("返回") {},
+                if (isFavourite) Choice(Strings.unfavourite) { vm.removeFavourite(b.url) } else Choice(Strings.favourite) { vm.addFavourite(b.summary) },
+                Choice(Strings.removeFromHistory) { vm.forgetBrowsed(b.url) },
+                Choice(Strings.back) {},
             ),
             onDismiss = { editing = null },
         )
     }
     if (clearing) {
         ChoiceDialog(
-            title = "清除全部浏览记录？",
-            message = "收藏的频道不受影响。",
-            choices = listOf(Choice("清除") { vm.clearBrowsed() }, Choice("返回") {}),
+            title = Strings.clearAllQuestion,
+            message = Strings.favouritesKept,
+            choices = listOf(Choice(Strings.clear) { vm.clearBrowsed() }, Choice(Strings.back) {}),
             onDismiss = { clearing = false },
         )
     }

@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.channel
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,13 +95,13 @@ fun ChannelScreen(vm: ChannelViewModel, onOpenVideo: (String) -> Unit) {
     val favourite by vm.isFavourite.collectAsState()
 
     when (val d = detail) {
-        is Load.Loading -> Message("加载中…")
-        is Load.Failed -> Message("加载失败：${d.message}", onRetry = vm::loadDetail)
+        is Load.Loading -> Message(Strings.loading)
+        is Load.Failed -> Message(Strings.loadFailed(d.message), onRetry = vm::loadDetail)
         is Load.Ready -> VideoGrid(
             videos,
             onOpen = { onOpenVideo(it.url) },
             onLoadMore = vm::loadMore,
-            emptyText = "这个频道还没有视频",
+            emptyText = Strings.channelHasNoVideos,
             showChannel = false,
             header = {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -131,7 +132,7 @@ private fun ChannelHeader(d: ChannelDetail, favourite: Boolean, onToggleFavourit
                     tint = if (favourite) FavouriteColor else LocalContentColor.current,
                     modifier = Modifier.size(20.dp),
                 )
-                Text(if (favourite) "已收藏（再按取消）" else "收藏", modifier = Modifier.padding(start = 8.dp))
+                Text(if (favourite) Strings.unfavouriteToggle else Strings.favourite, modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

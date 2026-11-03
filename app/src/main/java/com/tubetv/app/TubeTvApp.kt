@@ -59,6 +59,7 @@ class TubeTvApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Strings.language = UiLanguage.of(languageLocale(titleLanguage))
         http = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -67,7 +68,7 @@ class TubeTvApp : Application() {
         connection = Connection(this)
         // Lists saved by older builds have English titles (see FeedCache.FILE_NAME).
         File(filesDir, "feeds.json").delete()
-        source = RetryingSource(NewPipeSource(http, titleLanguage?.let(Locale::forLanguageTag) ?: Locale.getDefault()), connection)
+        source = RetryingSource(NewPipeSource(http, languageLocale(titleLanguage)), connection)
         val db = AppDatabase.create(this)
         history = db.watchHistory()
         library = ChannelLibrary(db.channels())
@@ -77,13 +78,16 @@ class TubeTvApp : Application() {
 
     private val settings by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
 
-    /** The language tag titles are asked for in (see [TitleLanguages]); null follows the TV's language. */
+    private fun languageLocale(tag: String?): Locale = tag?.let(Locale::forLanguageTag) ?: Locale.getDefault()
+
+    /** The language tag the menus and titles are in (see [TitleLanguages]); null follows the TV's language. */
     val titleLanguage: String? get() = settings.getString(KEY_TITLE_LANGUAGE, null)
 
-    /** Switches the title language and drops the saved lists, which have titles in the old one. */
+    /** Switches the app's language and drops the saved lists, which have titles in the old one. */
     fun setTitleLanguage(tag: String?) {
         settings.edit().putString(KEY_TITLE_LANGUAGE, tag).apply()
-        source.setLanguage(tag?.let(Locale::forLanguageTag) ?: Locale.getDefault())
+        Strings.language = UiLanguage.of(languageLocale(tag))
+        source.setLanguage(languageLocale(tag))
         File(filesDir, com.tubetv.app.data.library.FeedCache.FILE_NAME).delete()
     }
 

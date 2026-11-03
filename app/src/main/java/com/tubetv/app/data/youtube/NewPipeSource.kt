@@ -1,5 +1,6 @@
 package com.tubetv.app.data.youtube
 
+import com.tubetv.app.Strings
 import com.tubetv.app.data.YouTubeSource
 import com.tubetv.app.data.model.ChannelDetail
 import com.tubetv.app.data.model.ChannelSummary
@@ -238,7 +239,7 @@ class NewPipeSource(http: OkHttpClient, language: Locale = Locale.getDefault()) 
             audio = info.audioStreams.orEmpty(),
             muxed = info.videoStreams.orEmpty(),
         )
-        if (sources.isEmpty()) error("YouTube 没有提供可播放的视频流")
+        if (sources.isEmpty()) error(Strings.noStreams)
         return Playback(
             url = info.url,
             title = info.name.orEmpty(),

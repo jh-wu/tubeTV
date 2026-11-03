@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.update
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,18 +45,18 @@ fun UpdateDialog(vm: UpdateViewModel, onLanguageChanged: () -> Unit) {
 
     val s = state
     if (s is UpdateState.Hidden) return
-    val current = "当前版本：build ${vm.currentBuild}"
+    val current = Strings.currentVersion(vm.currentBuild)
 
     when (s) {
         UpdateState.Hidden -> Unit
-        UpdateState.About -> UpdateBox("设置", "当前版本：build ${vm.currentBuild}（${vm.versionName}）\n更新来源：GitHub ${GitHubReleases.REPO}", onBack = vm::dismiss) {
-            Choice("检查更新", primary = true, onClick = vm::checkNow)
-            Choice("标题语言：${vm.titleLanguageName}", onClick = vm::chooseLanguage)
-            Choice("关闭", onClick = vm::dismiss)
+        UpdateState.About -> UpdateBox(Strings.settings, Strings.about(vm.currentBuild, vm.versionName, GitHubReleases.REPO), onBack = vm::dismiss) {
+            Choice(Strings.checkForUpdates, primary = true, onClick = vm::checkNow)
+            Choice(Strings.setting(Strings.languageSetting, vm.titleLanguageName), onClick = vm::chooseLanguage)
+            Choice(Strings.close, onClick = vm::dismiss)
         }
         UpdateState.Language -> UpdateBox(
-            "标题语言",
-            "视频标题用这个语言显示（上传者提供了翻译时）。",
+            Strings.languageSetting,
+            Strings.languageMessage,
             onBack = vm::showAbout,
             vertical = true,
         ) {
@@ -66,35 +67,35 @@ fun UpdateDialog(vm: UpdateViewModel, onLanguageChanged: () -> Unit) {
                 })
             }
         }
-        UpdateState.Checking -> UpdateBox("正在检查更新…", current, onBack = vm::dismiss) {
-            Choice("取消", primary = true, onClick = vm::dismiss)
+        UpdateState.Checking -> UpdateBox(Strings.checking, current, onBack = vm::dismiss) {
+            Choice(Strings.cancel, primary = true, onClick = vm::dismiss)
         }
-        is UpdateState.UpToDate -> UpdateBox("已是最新版本", current, onBack = vm::dismiss) {
-            Choice("好", primary = true, onClick = vm::dismiss)
+        is UpdateState.UpToDate -> UpdateBox(Strings.upToDate, current, onBack = vm::dismiss) {
+            Choice(Strings.ok, primary = true, onClick = vm::dismiss)
         }
-        is UpdateState.Available -> UpdateBox("发现新版本 build ${s.release.build}", current, s.release.notes, onBack = vm::dismiss) {
-            Choice("更新", primary = true, onClick = { vm.download(s.release) })
-            Choice("以后再说", onClick = vm::dismiss)
+        is UpdateState.Available -> UpdateBox(Strings.newVersion(s.release.build), current, s.release.notes, onBack = vm::dismiss) {
+            Choice(Strings.update, primary = true, onClick = { vm.download(s.release) })
+            Choice(Strings.later, onClick = vm::dismiss)
         }
-        is UpdateState.Downloading -> UpdateBox("正在下载 build ${s.release.build}… ${(s.progress * 100).toInt()}%", current, onBack = vm::dismiss) {
+        is UpdateState.Downloading -> UpdateBox(Strings.downloading(s.release.build, (s.progress * 100).toInt()), current, onBack = vm::dismiss) {
             Box(Modifier.width(360.dp).height(6.dp).background(MaterialTheme.colorScheme.surfaceVariant)) {
                 Box(Modifier.fillMaxWidth(s.progress).height(6.dp).background(MaterialTheme.colorScheme.primary))
             }
-            Choice("取消", primary = true, onClick = vm::dismiss)
+            Choice(Strings.cancel, primary = true, onClick = vm::dismiss)
         }
         is UpdateState.Ready -> UpdateBox(
-            "build ${s.release.build} 已下载",
-            if (s.needsPermission) "请在设置里允许 tubeTV 安装未知应用，然后返回按“安装”。"
-            else "如果没有出现安装界面，请按“安装”。",
+            Strings.downloaded(s.release.build),
+            if (s.needsPermission) Strings.allowInstall
+            else Strings.pressInstall,
             onBack = vm::dismiss,
         ) {
-            Choice("安装", primary = true, onClick = { vm.install(context) })
-            Choice("以后再说", onClick = vm::dismiss)
+            Choice(Strings.install, primary = true, onClick = { vm.install(context) })
+            Choice(Strings.later, onClick = vm::dismiss)
         }
-        is UpdateState.Failed -> UpdateBox("更新失败", s.message, onBack = vm::dismiss) {
+        is UpdateState.Failed -> UpdateBox(Strings.updateFailed, s.message, onBack = vm::dismiss) {
             val release = s.release
-            Choice("重试", primary = true, onClick = { if (release != null) vm.download(release) else vm.checkNow() })
-            Choice("关闭", onClick = vm::dismiss)
+            Choice(Strings.retry, primary = true, onClick = { if (release != null) vm.download(release) else vm.checkNow() })
+            Choice(Strings.close, onClick = vm::dismiss)
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.common
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -80,7 +81,7 @@ fun VideoGrid(
     onOpen: (VideoSummary) -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
-    emptyText: String = "没有视频",
+    emptyText: String = Strings.noVideos,
     showChannel: Boolean = true,
     header: (LazyGridScope.() -> Unit)? = null,
     gridState: LazyGridState = rememberLazyGridState(),
@@ -108,14 +109,14 @@ fun VideoGrid(
             VideoCard(v, onClick = { onOpen(v) }, showChannel = showChannel)
         }
         if (state.error != null && state.items.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) { Message("加载失败：${state.error}", onRetry = onLoadMore) }
+            item(span = { GridItemSpan(maxLineSpan) }) { Message(Strings.loadFailed(state.error), onRetry = onLoadMore) }
         }
     }
 }
 
 @Composable
 private fun EmptyGrid(state: GridState<*>, onRetry: () -> Unit, emptyText: String) = when {
-    state.error != null -> Message("加载失败：${state.error}", onRetry = onRetry)
-    state.loading -> Message("加载中…")
+    state.error != null -> Message(Strings.loadFailed(state.error), onRetry = onRetry)
+    state.loading -> Message(Strings.loading)
     else -> Message(emptyText)
 }

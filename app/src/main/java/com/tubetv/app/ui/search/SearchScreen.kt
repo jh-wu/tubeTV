@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.search
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -120,7 +121,7 @@ fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit, onOpenChann
             keyboardActions = KeyboardActions(onSearch = { vm.search(query) }),
             decorationBox = { field ->
                 if (query.isEmpty()) {
-                    Text("搜索频道或视频", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                    Text(Strings.searchHint, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                 }
                 field()
             },
@@ -143,8 +144,8 @@ fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit, onOpenChann
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("搜索记录", style = MaterialTheme.typography.titleSmall)
-                IconButton(onClick = vm::clearHistory) { Icon(AppIcons.ClearHistory, contentDescription = "清除搜索记录") }
+                Text(Strings.recentSearches, style = MaterialTheme.typography.titleSmall)
+                IconButton(onClick = vm::clearHistory) { Icon(AppIcons.ClearHistory, contentDescription = Strings.clearSearches) }
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(end = 48.dp)) {
                     items(recent, key = { it }) { term ->
                         OutlinedButton(onClick = { query = term; vm.search(term) }) { Text(term) }
@@ -157,20 +158,20 @@ fun SearchScreen(vm: SearchViewModel, onOpenVideo: (String) -> Unit, onOpenChann
             state,
             onOpen = { onOpenVideo(it.url) },
             onLoadMore = vm::loadMore,
-            emptyText = if (vm.lastQuery.isEmpty()) "输入频道名或视频标题后按搜索" else "没有找到视频",
+            emptyText = if (vm.lastQuery.isEmpty()) Strings.typeToSearch else Strings.noVideosFound,
             header = {
                 if (channelResults != null) item(span = { GridItemSpan(maxLineSpan) }) {
                     when (channelResults) {
-                        is Load.Loading -> Text("正在搜索频道…", style = MaterialTheme.typography.bodyMedium)
-                        is Load.Failed -> Text("频道搜索失败：${channelResults.message}", style = MaterialTheme.typography.bodyMedium)
+                        is Load.Loading -> Text(Strings.searchingChannels, style = MaterialTheme.typography.bodyMedium)
+                        is Load.Failed -> Text(Strings.channelSearchFailed(channelResults.message), style = MaterialTheme.typography.bodyMedium)
                         is Load.Ready -> {
-                            if (channelResults.value.isEmpty()) Text("没有找到频道", style = MaterialTheme.typography.bodyMedium)
-                            else ChannelRow("频道", channelResults.value, onOpen = { onOpenChannel(it.url) }, favourites = favouriteUrls, edgePadding = 0.dp)
+                            if (channelResults.value.isEmpty()) Text(Strings.noChannelsFound, style = MaterialTheme.typography.bodyMedium)
+                            else ChannelRow(Strings.channels, channelResults.value, onOpen = { onOpenChannel(it.url) }, favourites = favouriteUrls, edgePadding = 0.dp)
                         }
                     }
                 }
                 if (state.items.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Text("视频", style = MaterialTheme.typography.titleLarge) }
+                    item(span = { GridItemSpan(maxLineSpan) }) { Text(Strings.videos, style = MaterialTheme.typography.titleLarge) }
                 }
             },
         )

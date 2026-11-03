@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.home
 
+import com.tubetv.app.Strings
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -395,20 +396,26 @@ class HomeViewModel(
 }
 
 /** The sections in the bar down the right of the home screen. */
-enum class HomeTab(val label: String) {
-    Home("首页"),
-    Latest("最新视频"),
-    Continue("继续观看"),
-    Favourites("收藏频道"),
-    Browsed("浏览过的频道"),
+enum class HomeTab {
+    Home, Latest, Continue, Favourites, Browsed;
+
+    val label: String get() = when (this) {
+        Home -> Strings.home
+        Latest -> Strings.latest
+        Continue -> Strings.continueWatching
+        Favourites -> Strings.favouriteChannels
+        Browsed -> Strings.browsedChannels
+    }
 }
 
 /** The tabs across the top of 首页: picks for the viewer, then YouTube's public lists. */
-enum class FeedTab(val label: String, val kioskId: String?) {
-    ForYou("为你推荐", null),
-    Live(Kiosks.title(Kiosks.LIVE), Kiosks.LIVE),
-    Music(Kiosks.title(Kiosks.MUSIC), Kiosks.MUSIC),
-    Gaming(Kiosks.title(Kiosks.GAMING), Kiosks.GAMING),
-    Movies(Kiosks.title(Kiosks.MOVIES), Kiosks.MOVIES),
-    Podcasts(Kiosks.title(Kiosks.PODCASTS), Kiosks.PODCASTS),
+enum class FeedTab(val kioskId: String?) {
+    ForYou(null),
+    Live(Kiosks.LIVE),
+    Music(Kiosks.MUSIC),
+    Gaming(Kiosks.GAMING),
+    Movies(Kiosks.MOVIES),
+    Podcasts(Kiosks.PODCASTS);
+
+    val label: String get() = if (kioskId == null) Strings.forYou else Kiosks.title(kioskId)
 }

@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.player
 
+import com.tubetv.app.Strings
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -132,7 +133,7 @@ class PlayerActivity : ComponentActivity() {
                 val p = app.source.playback(videoUrl)
                 playback = p
                 p.channelUrl?.let { url ->
-                    channelButton.contentDescription = p.channelName ?: "频道"
+                    channelButton.contentDescription = p.channelName ?: Strings.channel
                     channelButton.setOnClickListener { confirmChannel(url, p.channelName) }
                     channelButton.visibility = View.VISIBLE
                 }
@@ -287,17 +288,17 @@ class PlayerActivity : ComponentActivity() {
     private fun showMenu() {
         val exo = player ?: return
         val items = buildList {
-            if (qualityChoices(exo).size > 1) add("画质：${currentQuality(exo)}" to ::chooseQuality)
-            add("字幕：${currentSubtitle(exo) ?: "关闭"}" to ::chooseSubtitle)
-            if (audioChoices(exo).size > 1) add("音轨：${currentAudio(exo)}" to ::chooseAudio)
-            add("播放速度：${speedLabel(exo.playbackParameters.speed)}" to ::chooseSpeed)
+            if (qualityChoices(exo).size > 1) add(Strings.setting(Strings.quality, currentQuality(exo)) to ::chooseQuality)
+            add(Strings.setting(Strings.subtitles, currentSubtitle(exo) ?: Strings.off) to ::chooseSubtitle)
+            if (audioChoices(exo).size > 1) add(Strings.setting(Strings.audioTrack, currentAudio(exo)) to ::chooseAudio)
+            add(Strings.setting(Strings.speed, speedLabel(exo.playbackParameters.speed)) to ::chooseSpeed)
         }
-        choose("设置", items.map { it.first }, -1) { items[it].second() }
+        choose(Strings.settings, items.map { it.first }, -1) { items[it].second() }
     }
 
     private fun textGroups(exo: ExoPlayer) = exo.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
 
-    private fun Format.name() = label ?: language?.let { Locale.forLanguageTag(it).getDisplayName(Locale.SIMPLIFIED_CHINESE) } ?: "未知"
+    private fun Format.name() = label ?: language?.let { Locale.forLanguageTag(it).getDisplayName(Strings.locale) } ?: Strings.unknown
 
     private fun currentSubtitle(exo: ExoPlayer) = textGroups(exo).firstOrNull { it.isSelected }?.let { g ->
         (0 until g.length).firstOrNull { g.isTrackSelected(it) }?.let { g.getTrackFormat(it).name() }
@@ -307,11 +308,11 @@ class PlayerActivity : ComponentActivity() {
         val exo = player ?: return
         val groups = textGroups(exo)
         if (groups.isEmpty()) {
-            Toast.makeText(this, "这个视频没有字幕", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, Strings.noSubtitles, Toast.LENGTH_SHORT).show()
             return
         }
         val selected = groups.indexOfFirst { it.isSelected }
-        choose("字幕", listOf("关闭") + groups.map { it.getTrackFormat(0).name() }, selected + 1) { i ->
+        choose(Strings.subtitles, listOf(Strings.off) + groups.map { it.getTrackFormat(0).name() }, selected + 1) { i ->
             val params = exo.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
             if (i == 0) {
                 params.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).setPreferredTextLanguage(null)
@@ -340,17 +341,17 @@ class PlayerActivity : ComponentActivity() {
     private fun currentAudio(exo: ExoPlayer): String {
         val p = playback
         if (p != null && p.sources.getOrNull(sourceIndex) is PlaySource.Merged) {
-            return audioChoice ?: p.audioOptions.firstOrNull()?.label ?: "默认"
+            return audioChoice ?: p.audioOptions.firstOrNull()?.label ?: Strings.default
         }
         return exo.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
-            ?.getTrackFormat(0)?.name() ?: "默认"
+            ?.getTrackFormat(0)?.name() ?: Strings.default
     }
 
     private fun chooseAudio() {
         val exo = player ?: return
         val p = playback ?: return
         val choices = audioChoices(exo)
-        choose("音轨", choices, choices.indexOf(currentAudio(exo))) { i ->
+        choose(Strings.audioTrack, choices, choices.indexOf(currentAudio(exo))) { i ->
             if (p.sources.getOrNull(sourceIndex) is PlaySource.Merged) {
                 // A different language is a different file: reload at the same point.
                 audioChoice = p.audioOptions[i].label
@@ -380,15 +381,15 @@ class PlayerActivity : ComponentActivity() {
         if (playingMerged()) playback?.videoOptions.orEmpty().map { it.label } else streamQualities(exo).map { it.first }
 
     private fun currentQuality(exo: ExoPlayer): String {
-        if (playingMerged()) return videoChoice ?: playback?.sources?.getOrNull(sourceIndex)?.label ?: "默认"
+        if (playingMerged()) return videoChoice ?: playback?.sources?.getOrNull(sourceIndex)?.label ?: Strings.default
         val height = exo.videoFormat?.height ?: 0
-        return if (height > 0) "${height}p" else "自动"
+        return if (height > 0) "${height}p" else Strings.auto
     }
 
     private fun chooseQuality() {
         val exo = player ?: return
         val choices = qualityChoices(exo)
-        choose("画质", choices, choices.indexOf(currentQuality(exo))) { i ->
+        choose(Strings.quality, choices, choices.indexOf(currentQuality(exo))) { i ->
             if (playingMerged()) {
                 // Another quality is another file: reload at the same point.
                 videoChoice = choices[i]
@@ -407,7 +408,7 @@ class PlayerActivity : ComponentActivity() {
     private fun chooseSpeed() {
         val exo = player ?: return
         val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-        choose("播放速度", speeds.map(::speedLabel), speeds.indexOf(exo.playbackParameters.speed)) { i ->
+        choose(Strings.speed, speeds.map(::speedLabel), speeds.indexOf(exo.playbackParameters.speed)) { i ->
             exo.setPlaybackSpeed(speeds[i])
         }
     }
@@ -455,14 +456,14 @@ class PlayerActivity : ComponentActivity() {
     /** Asks before leaving the video for its channel's page. */
     private fun confirmChannel(url: String, name: String?) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(name ?: "这个视频")
-            .setMessage("打开频道页会停止播放；看完评论按返回键继续播放。")
-            .setPositiveButton("打开频道") { _, _ -> openChannel(url) }
+            .setTitle(name ?: Strings.thisVideo)
+            .setMessage(Strings.channelMenuMessage)
+            .setPositiveButton(Strings.openChannel) { _, _ -> openChannel(url) }
             // Over the player, so Back comes straight back to the video.
-            .setNeutralButton("查看评论") { _, _ ->
+            .setNeutralButton(Strings.viewComments) { _, _ ->
                 startActivity(CommentsActivity.intent(this, videoUrl, playback?.title))
             }
-            .setNegativeButton("继续播放", null)
+            .setNegativeButton(Strings.keepWatching, null)
             .show()
             .getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
     }
@@ -490,7 +491,7 @@ class PlayerActivity : ComponentActivity() {
     private fun showReconnecting() {
         if (failed) return
         reconnectShown = true
-        errorView.text = MainActivity.RECONNECTING
+        errorView.text = Strings.reconnecting
         errorView.visibility = View.VISIBLE
     }
 
@@ -512,7 +513,7 @@ class PlayerActivity : ComponentActivity() {
             startActivity(intent)
             finish()
         } catch (_: ActivityNotFoundException) {
-            errorView.text = "${errorView.text}\n\n没有找到 YouTube 应用"
+            errorView.text = "${errorView.text}\n\n${Strings.noYouTubeApp}"
         }
     }
 
@@ -596,11 +597,11 @@ class PlayerActivity : ComponentActivity() {
     private fun fail(e: Throwable) {
         Log.w("PlayerActivity", "playback failed", e)
         failed = true
-        val tried = attempts.takeIf { it.isNotEmpty() }?.joinToString("\n", prefix = "尝试过：\n")
+        val tried = attempts.takeIf { it.isNotEmpty() }?.joinToString("\n", prefix = Strings.tried + "\n")
         errorView.text = listOfNotNull(
-            "播放失败：${StreamPlayer.describe(e)}",
+            Strings.playbackFailed(StreamPlayer.describe(e)),
             tried,
-            "按确认键用 YouTube 应用打开，按返回键退出",
+            Strings.failedHelp,
         ).joinToString("\n\n")
         errorView.visibility = View.VISIBLE
     }

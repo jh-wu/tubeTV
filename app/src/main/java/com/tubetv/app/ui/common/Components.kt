@@ -1,5 +1,6 @@
 package com.tubetv.app.ui.common
 
+import com.tubetv.app.Strings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,7 +77,7 @@ fun VideoCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 val badge = when {
-                    video.isLive -> "直播"
+                    video.isLive -> Strings.liveBadge
                     video.durationSec > 0 -> formatTime(video.durationSec * 1000)
                     else -> null
                 }
@@ -140,7 +141,7 @@ fun ChannelCard(
             if (favourite) {
                 Icon(
                     Icons.Filled.Star,
-                    contentDescription = "已收藏",
+                    contentDescription = Strings.favourited,
                     tint = FavouriteColor,
                     modifier = Modifier.align(Alignment.TopEnd).size(28.dp)
                         .background(Color(0xCC000000), CircleShape).padding(4.dp),
@@ -148,7 +149,7 @@ fun ChannelCard(
             }
             if (hasNew) {
                 Text(
-                    "新",
+                    Strings.newBadge,
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
                     modifier = Modifier.align(Alignment.TopStart)
@@ -240,7 +241,7 @@ fun Message(text: String, onRetry: (() -> Unit)? = null, modifier: Modifier = Mo
     ) {
         Text(text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         if (onRetry != null) {
-            Button(onClick = onRetry, modifier = Modifier.padding(top = 16.dp)) { Text("重试") }
+            Button(onClick = onRetry, modifier = Modifier.padding(top = 16.dp)) { Text(Strings.retry) }
         }
     }
 }

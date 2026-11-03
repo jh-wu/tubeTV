@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "没有找到 YouTube 应用", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, Strings.noYouTubeApp, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -141,7 +141,7 @@ class MainActivity : ComponentActivity() {
                                 colors = androidx.tv.material3.SurfaceDefaults.colors(containerColor = Color(0xE0000000)),
                             ) {
                                 Text(
-                                    RECONNECTING,
+                                    Strings.reconnecting,
                                     color = Color.White,
                                     style = MaterialTheme.typography.bodyLarge,
                                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
@@ -152,9 +152,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    companion object {
-        const val RECONNECTING = "网络连接不稳定，正在重新连接…"
     }
 }
