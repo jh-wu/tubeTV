@@ -1,90 +1,123 @@
 # tubeTV
 
-A native Android TV / Google TV client for YouTube, written in Kotlin with Jetpack Compose for TV,
-Media3 (ExoPlayer) and Room. It follows the design of [iyfTV](https://github.com/jh-wu/iyftv), with
-favourite channels in place of iyfTV's fixed categories.
+tubeTV is a YouTube app for Google TV and Android TV, made to be used with the TV remote.
+You don't need a Google account: open the app and start watching. You can keep a list of
+favourite channels, see their newest videos in one place, and pick up videos where you left off.
 
-## Features (v1)
+The app's menus are in Chinese.
 
-- An icon bar that slides in from the left (press left at the screen's edge) holds the sections (首页, 最新视频, 继续观看, 收藏频道, 浏览过的频道),
-  then 搜索 and 设置.
-- 设置 → **标题语言** shows video titles in the chosen language (简体中文, 繁體中文, English, 日本語, 한국어,
-  or the TV's) where the uploader translated them. 最新视频 comes from channel RSS feeds, which carry the original titles.
-- **首页** (the default section) has six tabs across the top. OK on the open tab reloads it;
-  down past the last video goes back up to the tab. **为你推荐** shuffles YouTube's suggestions
-  next to a random few of the videos you watched lately, and each reload brings ones it hasn't
-  shown yet (with nothing watched, it mixes YouTube's lists). Then YouTube's public lists: 直播, 音乐, 游戏, 电影, 播客.
-  YouTube's own personal home feed needs a Google sign-in, which the app doesn't do.
-- While playing, the gear in the control bar picks subtitles (remembered for the next video),
-  the quality (画质), the audio language on dubbed videos, and the speed. Videos start in their original audio, and
-  subtitles are outlined white text with no background.
-  The person icon at the bottom left of the control bar opens the video's channel or its 评论 (comments;
-  Back returns to the video). The video page has a 评论 button too.
-- When the network drops (Wi-Fi lost, say), the app shows 网络连接不稳定，正在重新连接… and keeps
-  trying; lists load and the video carries on where it stopped once the connection is back.
-- Video grids show three big cards across; under each title, the channel, then when it came out (3天前) and its views.
-- **最新视频**: the newest uploads of all favourite channels, merged into one grid, newest first,
-  24 at a time (more load as you scroll down).
-- **收藏频道**: favourite channels; a red 新 marks ones that uploaded in the past week since you
-  last opened them (浏览过的频道 too). Add one with **收藏** on its channel page; long-press a channel
-  here to remove it. The **+** card opens search.
-- **浏览过的频道**: every channel you open is remembered here, most recent first, with how often
-  you opened it. Long-press to favourite or forget one; **清除浏览记录** empties the list
-  (favourites stay).
-- **Search**: channels in a row, videos in a paged grid, with recent search terms.
-- **Channel page**: avatar, subscribers, description, the favourite button, and its uploads.
-- **Video page**: play or resume, open the channel, related videos.
-- **Playback**: full-screen with D-pad controls. Progress is saved every 10 seconds; the
-  继续观看 tab lists unfinished videos. If none of a video's streams play, OK opens it in the
-  YouTube app instead.
+## Install
 
-Favourites, browsing history, watch progress and search terms are stored on the TV only
-(Room database and SharedPreferences); there is no Google sign-in.
+1. On the TV, turn on developer options: **Settings → System → About**, then select
+   **Android TV OS build** seven times.
+2. Download the app: <https://github.com/jh-wu/tubeTV/releases/latest/download/tubetv.apk>
+3. Get the file onto the TV. The easiest way is the **Send files to TV** app, on your phone and
+   on the TV.
+4. When the TV asks, allow that app to install unknown apps
+   (**Settings → Apps → Security & restrictions → Unknown sources**), then open the file and install it.
 
-## Install on Google TV
+You only do this once. After that, tubeTV checks for a new version each time it starts and offers
+**更新**. Your favourites and history are kept when you update.
 
-Every push to `main` publishes a signed APK to the latest GitHub release:
-<https://github.com/jh-wu/tubeTV/releases/latest/download/tubetv.apk>
+## Getting around
 
-1. On the TV: Settings → System → About → click **Android TV OS build** 7 times to enable developer options.
-2. Get the APK onto the TV, either with the **Send files to TV** app or with `adb install tubetv.apk` over the network.
-3. Allow the app you used under Settings → Apps → Security & restrictions → **Unknown sources**, then install.
+Press **Left** at the left edge of the screen to open the side bar. From top to bottom:
 
-Later builds install over the old one and keep your favourites and history, because all builds
-share the same signing key (`app/debug.keystore`). As in iyfTV, the app checks the latest GitHub
-release on start and offers **更新**; this needs the repo to be public.
+| Icon | Section | What's there |
+| --- | --- | --- |
+| House | **首页** | Videos to watch (see below) |
+| Bell | **最新视频** | The newest videos from all your favourite channels, newest first |
+| Clock | **继续观看** | Videos you started but didn't finish |
+| Star | **收藏频道** | Your favourite channels |
+| Person | **浏览过的频道** | Every channel you've opened, most recent first |
+| Magnifier | **搜索** | Search for videos and channels |
+| Gear | **设置** | Settings and updates |
 
-## Build
+Each video shows its channel, how long ago it came out (for example 3天前) and how many times it
+has been watched. Scroll down and more videos load.
 
-Requires Android Studio (or the Android SDK with platform 35) and JDK 17+.
+### 首页
+
+Tabs run across the top:
+
+- **为你推荐**: suggestions based on what you've watched lately. Press **OK** on the tab to get
+  a fresh mix you haven't seen yet.
+- **直播, 音乐, 游戏, 电影, 播客**: what's popular on YouTube right now.
+
+Press **OK** on any open tab to reload it. Pressing **Down** past the last video takes you back
+up to the tabs.
+
+### Favourite channels
+
+- To add a favourite, open the channel and press **收藏**.
+- To remove one, long-press it in 收藏频道.
+- A red **新** on a channel means it posted a video in the past week that's newer than your last visit.
+- 最新视频 shows 24 videos at a time; scroll down for more. Press **刷新** to check again.
+
+In 浏览过的频道, long-press a channel to add it to your favourites or remove it from the list.
+**清除浏览记录** clears the whole list; your favourites stay.
+
+## Watching
+
+Videos in the side-bar sections (首页, 最新视频, 继续观看) play right away. From search or a
+channel page, a video opens its page first, where you can play it,
+continue from where you stopped, start from the beginning, open the channel, read the **评论**
+(comments), or pick a related video.
+
+While a video plays, press any button on the remote to show the controls:
+
+- **Left / Right** on the progress bar skips back or forward 10 seconds.
+- The **gear** picks 画质 (quality), 字幕 (subtitles), 音轨 (audio language, on videos that offer
+  more than one) and 播放速度 (speed). Videos start in their original language, and the app
+  remembers your subtitle choice for the next video.
+- The **person icon** at the bottom left offers **打开频道** (go to the channel) and **查看评论**
+  (read comments). Press **Back** in the comments to return to the video.
+
+Where you stopped is saved as you watch, so the video shows up in 继续观看.
+
+## Settings
+
+Open **设置** at the bottom of the side bar.
+
+- **检查更新** checks for a new version.
+- **标题语言** picks the language of video titles: 跟随系统 (the TV's language), 简体中文,
+  繁體中文, English, 日本語 or 한국어. A title only changes when the uploader has translated it.
+  最新视频 always shows a video's original title.
+
+## When something goes wrong
+
+- **No internet, or the Wi-Fi drops**: the app shows 网络连接不稳定，正在重新连接… and keeps
+  trying. Once you're back online, lists finish loading and the video continues where it stopped.
+- **A video won't play**: the app tries the video's other streams first. If none of them work,
+  press **OK** to open it in the YouTube app.
+- **YouTube asks you to confirm you're not a bot**: YouTube does this to some networks from time
+  to time. Try again later, or open the video in the YouTube app.
+
+## Privacy
+
+There's no sign-in. Your favourites, history, where you stopped in each video and your recent
+searches are stored only on your TV. Uninstalling the app deletes them.
+
+## Things it can't do
+
+- Your personal YouTube home page, subscriptions, likes and playlists. These need a Google
+  account, which the app doesn't use.
+- Posting comments or opening a comment's replies. You can read comments but not reply.
+
+---
+
+## For developers
+
+tubeTV is written in Kotlin with Compose for TV, Media3 (ExoPlayer) and Room. YouTube data
+comes from [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor), with no API key.
+Every push to `main` builds and publishes a release.
 
 ```sh
-./gradlew assembleRelease   # what CI publishes; signed with the checked-in debug key
-adb install app/build/outputs/apk/release/app-release.apk
+./gradlew assembleRelease     # needs JDK 17+ and the Android SDK (platform 35)
+./gradlew testDebugUnitTest   # unit tests
+TUBETV_LIVE=1 ./gradlew testDebugUnitTest --tests '*LiveYouTubeTest*'   # against real YouTube
 ```
 
-## Layout
-
-```
-app/src/main/java/com/tubetv/app/
-  data/YouTubeSource.kt        interface the UI talks to
-  data/youtube/                YouTube client built on NewPipeExtractor
-  data/library/                Room database: watch progress, favourite and browsed channels
-  ui/                          Compose for TV screens and the Media3 player activity
-```
-
-## How the YouTube integration works
-
-[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) reads the same data the
-YouTube website and apps use, without an API key or account. Search, channel pages and video
-pages come from it; "最新视频" uses each channel's RSS feed (one small request per channel) and
-falls back to the channel's video tab. For playback the app prefers YouTube's HLS manifest, then
-DASH, then separate video and audio files, then a single low-resolution file, and sends each
-stream request with the user agent of the YouTube app the link was issued for.
-
-When YouTube changes something, extraction breaks until NewPipeExtractor ships a fix; bump
-`newpipeExtractor` in `gradle/libs.versions.toml` to pick it up.
-
-- `./gradlew testDebugUnitTest` runs the unit tests.
-- `TUBETV_LIVE=1 ./gradlew testDebugUnitTest --tests '*LiveYouTubeTest*'` runs the client against YouTube.
-  CI's `probe-youtube` job does this on every push without failing the build.
+When YouTube changes and something breaks, update `newpipeExtractor` in
+`gradle/libs.versions.toml`. All builds are signed with the checked-in `app/debug.keystore`, so
+new versions install over old ones.
