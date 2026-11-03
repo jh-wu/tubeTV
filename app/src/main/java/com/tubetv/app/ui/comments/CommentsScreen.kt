@@ -52,7 +52,7 @@ fun CommentsScreen(vm: CommentsViewModel, title: String?) {
     val state by vm.state.collectAsState()
     if (state.items.isEmpty()) {
         when {
-            state.error != null -> Message(Strings.loadFailed(state.error), onRetry = vm::loadMore)
+            state.error != null -> Message(Strings.loadFailed(state.error.orEmpty()), onRetry = vm::loadMore)
             state.loading || state.hasMore -> Message(Strings.loading)
             else -> Message(Strings.noComments)
         }
@@ -78,7 +78,7 @@ fun CommentsScreen(vm: CommentsViewModel, title: String?) {
         }
         if (state.loading) item { Text(Strings.loading, modifier = Modifier.padding(16.dp)) }
         if (state.error != null) {
-            item { Message(Strings.loadFailed(state.error), onRetry = vm::loadMore, modifier = Modifier.fillMaxWidth()) }
+            item { Message(Strings.loadFailed(state.error.orEmpty()), onRetry = vm::loadMore, modifier = Modifier.fillMaxWidth()) }
         }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
